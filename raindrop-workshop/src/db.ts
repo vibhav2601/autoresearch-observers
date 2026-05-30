@@ -417,6 +417,19 @@ export function getRuns(limit = 200) {
       COALESCE(${schema.runs_with_hints.event_name}, '') != 'observer_agent_session'
       AND COALESCE(${schema.runs_with_hints.user_id}, '') != 'opencode-observer'
       AND COALESCE(${schema.runs_with_hints.metadata}, '') NOT LIKE '%"observedRunId"%'
+      AND NOT EXISTS (
+        SELECT 1 FROM spans s
+        WHERE s.run_id = ${schema.runs_with_hints.id}
+          AND s.parent_span_id IS NULL
+          AND (
+            COALESCE(s.input_payload, '') LIKE 'Observer nudge:%'
+            OR COALESCE(s.input_payload, '') IN (
+              SELECT after_prompt FROM steering_events
+              WHERE after_prompt IS NOT NULL
+                AND action IN ('nudge', 'system_prompt_update')
+            )
+          )
+      )
     `)
     .orderBy(desc(schema.runs_with_hints.last_updated_at))
     .limit(limit)
@@ -581,6 +594,24 @@ export function getMostRecentlyTouchedRun() {
   return getDrizzleDb()
     .select()
     .from(schema.runs_with_hints)
+    .where(drizzleSql`
+      COALESCE(${schema.runs_with_hints.event_name}, '') != 'observer_agent_session'
+      AND COALESCE(${schema.runs_with_hints.user_id}, '') != 'opencode-observer'
+      AND COALESCE(${schema.runs_with_hints.metadata}, '') NOT LIKE '%"observedRunId"%'
+      AND NOT EXISTS (
+        SELECT 1 FROM spans s
+        WHERE s.run_id = ${schema.runs_with_hints.id}
+          AND s.parent_span_id IS NULL
+          AND (
+            COALESCE(s.input_payload, '') LIKE 'Observer nudge:%'
+            OR COALESCE(s.input_payload, '') IN (
+              SELECT after_prompt FROM steering_events
+              WHERE after_prompt IS NOT NULL
+                AND action IN ('nudge', 'system_prompt_update')
+            )
+          )
+      )
+    `)
     .orderBy(desc(schema.runs_with_hints.last_updated_at))
     .limit(1)
     .get() ?? null;

@@ -19,13 +19,31 @@ Hard rules:
 - Use restart only when the run is clearly on the wrong path.
 - Use stop only when continuing is wasteful or harmful.
 - If evidence is thin, do nothing and explain why.
-- Status is always "mock_applied" unless the control bridge call succeeds (it likely won't; assume mock).
+- Prefer the steering actuator over direct Workshop writeback. The actuator applies the control call to OpenCode and writes the Workshop event.
+- Do not separately post to Workshop if the actuator returns ok=true.
 
 Allowed corrective actions: nudge, system_prompt_update, stop, restart.
 Allowed statuses: proposed, mock_applied, applied, acknowledged, dismissed, failed.`;
 
-function writebackBlock(workshopBase: string, observedRunId: string, source: string): string {
-  return `Writeback (only if a corrective action is warranted):
+function writebackBlock(workshopBase: string, controlUrl: string, observedRunId: string, source: string): string {
+  return `Preferred writeback (only if a corrective action is warranted):
+\`\`\`bash
+curl -sS -X POST "${controlUrl}/apply" \\
+  -H 'Content-Type: application/json' \\
+  -d '{
+    "observedRunId": "${observedRunId}",
+    "action": "<nudge|system_prompt_update|stop|restart>",
+    "message": "<one actionable sentence>",
+    "afterPrompt": "<exact prompt to inject for nudge or system_prompt_update>",
+    "reason": "<why, citing the evidence>",
+    "source": "${source}",
+    "confidence": <0.0-1.0>
+  }'
+\`\`\`
+
+Use status=applied only when the actuator returns ok=true. The actuator can resolve a target from sessionId, targetSpanId, or targetSubagentSpanId when those fields are known.
+
+Fallback writeback if the actuator is unavailable or fails:
 \`\`\`bash
 curl -sS -X POST "${workshopBase}/api/steering/events" \\
   -H 'Content-Type: application/json' \\
@@ -34,13 +52,14 @@ curl -sS -X POST "${workshopBase}/api/steering/events" \\
     "action": "<nudge|system_prompt_update|stop|restart>",
     "status": "mock_applied",
     "message": "<one actionable sentence>",
+    "afterPrompt": "<exact prompt that would have been injected>",
     "reason": "<why, citing the evidence>",
     "source": "${source}",
     "confidence": <0.0-1.0>
   }'
 \`\`\`
 
-Do not include placeholders such as "<RUN_ID>" or "<TASK_SPAN_ID>". Omit fields you cannot fill from the evidence.`;
+Do not include placeholders such as "<RUN_ID>" or "<TASK_SPAN_ID>". Omit fields you cannot fill from the evidence. Avoid apostrophes in JSON string values when using curl with a single-quoted payload.`;
 }
 
 function stallPrompt(p: PromptInputs): string {
@@ -65,7 +84,7 @@ Decide:
 2. If progress could resume with a hint, emit a "nudge" telling the worker to abandon the open thread and continue.
 3. If the idle is plausibly normal (e.g. waiting on an LLM completion), do nothing.
 
-${writebackBlock(p.workshopBase, p.observedRunId, "harness:stall")}`;
+${writebackBlock(p.workshopBase, p.controlUrl, p.observedRunId, "harness:stall")}`;
 }
 
 function repeatLoopPrompt(p: PromptInputs): string {
@@ -83,7 +102,7 @@ Decide:
 2. If the repetition is across legitimately different work but happens to share a prefix, do nothing.
 3. Use "restart" only if the loop indicates the worker is on the wrong overall path.
 
-${writebackBlock(p.workshopBase, p.observedRunId, "harness:repeat_loop")}`;
+${writebackBlock(p.workshopBase, p.controlUrl, p.observedRunId, "harness:repeat_loop")}`;
 }
 
 function errorBurstPrompt(p: PromptInputs): string {
@@ -108,7 +127,7 @@ Decide:
 2. If the errors are unrelated transient failures, do nothing.
 3. Use "stop" only if continuing will keep producing the same errors.
 
-${writebackBlock(p.workshopBase, p.observedRunId, "harness:error_burst")}`;
+${writebackBlock(p.workshopBase, p.controlUrl, p.observedRunId, "harness:error_burst")}`;
 }
 
 const BUILDERS: Record<Pattern, (p: PromptInputs) => string> = {
