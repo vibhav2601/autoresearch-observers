@@ -70,5 +70,5 @@ In a second terminal, run the observer:
 ```bash
 cd raindrop-workshop/examples/opencode-observer-agent
 bun install
-PORT=3031 RAINDROP_WORKSHOP_URL=http://localhost:5899 bun run dev
+PORT=3031 RAINDROP_WORKSHOP_URL=http://localhost:5899 bun server.ts
 ```
