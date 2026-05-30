@@ -72,3 +72,11 @@ cd raindrop-workshop/examples/opencode-observer-agent
 bun install
 PORT=3031 RAINDROP_WORKSHOP_URL=http://localhost:5899 bun run dev
 ```
+
+## Hallucinating subagents test
+
+Use [`scenarios/hallucinating-subagents/`](./scenarios/hallucinating-subagents/)
+to test the full loop. It includes a tiny fixture repo, a prompt that launches
+two intentionally disagreeing OpenCode subagents, and tracking instructions for
+the parent run, subagent spans, observer passes, Observer Debug, and corrective
+nudges.
