@@ -3,7 +3,7 @@
 > **Hand-off doc for a fresh agent session.** Read this top-to-bottom and you have the full
 > context: what we're building, why, the locked architectural decisions, what's still open,
 > and where to start. Status as of **2026-05-30**: design phase, with the **L0 trace path already
-> scaffolded** — see [`opencode-raindrop-tracing/`](./opencode-raindrop-tracing/) (merged PR #1):
+> scaffolded** — see [`opencode-raindrop-tracing/`](../opencode-raindrop-tracing/) (merged PR #1):
 > one-command `setup.sh` that streams OpenCode sessions into a local Workshop via the official
 > Raindrop plugin. No observer/worker control code yet.
 
