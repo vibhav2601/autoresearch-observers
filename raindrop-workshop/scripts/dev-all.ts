@@ -318,6 +318,11 @@ const EXAMPLE_APPS: ExampleApp[] = [
         ? null
         : "opencode CLI not found on PATH — install via `npm install -g opencode-ai` or per opencode.ai/install",
   },
+  {
+    name: "opencode-steering-actuator",
+    port: 3032,
+    label: "OpenCode actuator",
+  },
 ];
 
 const PALETTE = ["36", "33", "35", "32", "34", "31"];

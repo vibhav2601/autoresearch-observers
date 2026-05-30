@@ -1,0 +1,601 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OpenCode Subagent Injection Architecture</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #18212f;
+      --muted: #5f6b7a;
+      --line: #d8dee8;
+      --panel: #ffffff;
+      --bg: #f5f7fb;
+      --blue: #2b6cb0;
+      --green: #2f855a;
+      --amber: #b7791f;
+      --red: #c53030;
+      --violet: #6b46c1;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.45;
+    }
+
+    main {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 32px 24px 56px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 32px;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin: 32px 0 12px;
+      font-size: 20px;
+      letter-spacing: 0;
+    }
+
+    p { margin: 0 0 12px; }
+
+    code {
+      background: #eef2f7;
+      border: 1px solid #dce3ed;
+      border-radius: 5px;
+      padding: 1px 5px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.92em;
+    }
+
+    .lede {
+      max-width: 900px;
+      color: var(--muted);
+      font-size: 16px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin: 20px 0 10px;
+    }
+
+    .box, .note, .step {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 1px 2px rgba(24, 33, 47, 0.04);
+    }
+
+    .box {
+      padding: 16px;
+      min-height: 132px;
+    }
+
+    .box h3 {
+      margin: 0 0 8px;
+      font-size: 15px;
+      letter-spacing: 0;
+    }
+
+    .box p {
+      color: var(--muted);
+      font-size: 13px;
+      margin: 0;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 10px;
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 12px;
+      font-weight: 650;
+      border: 1px solid currentColor;
+    }
+
+    .blue { color: var(--blue); }
+    .green { color: var(--green); }
+    .amber { color: var(--amber); }
+    .red { color: var(--red); }
+    .violet { color: var(--violet); }
+
+    .diagram {
+      margin-top: 20px;
+      padding: 20px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow-x: auto;
+    }
+
+    .system-map {
+      min-width: 1050px;
+    }
+
+    .system-map svg {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    .svc rect {
+      fill: #fff;
+      stroke: var(--line);
+      stroke-width: 1.4;
+      rx: 8;
+    }
+
+    .svc text {
+      fill: var(--ink);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .svc .small {
+      fill: var(--muted);
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    .svc .port {
+      fill: #f8fafc;
+      stroke: #dce3ed;
+    }
+
+    .edge {
+      fill: none;
+      stroke: #6b7280;
+      stroke-width: 2;
+      marker-end: url(#arrow);
+    }
+
+    .edge.trigger { stroke: var(--blue); }
+    .edge.trace { stroke: var(--green); }
+    .edge.judge { stroke: var(--violet); }
+    .edge.nudge { stroke: var(--amber); stroke-width: 2.7; }
+    .edge.ui { stroke: var(--red); }
+    .edge.dashed {
+      stroke-dasharray: 7 5;
+    }
+
+    .edge-label {
+      fill: #334155;
+      font-size: 11px;
+      font-weight: 650;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .swatch {
+      width: 20px;
+      height: 3px;
+      border-radius: 999px;
+      background: #6b7280;
+    }
+
+    .lane {
+      display: grid;
+      grid-template-columns: 210px 42px 210px 42px 210px 42px 210px;
+      align-items: stretch;
+      gap: 10px;
+      min-width: 970px;
+      margin: 12px 0;
+    }
+
+    .node {
+      border: 1px solid var(--line);
+      border-left-width: 5px;
+      border-radius: 8px;
+      padding: 14px;
+      background: #fff;
+      min-height: 118px;
+    }
+
+    .node strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 14px;
+    }
+
+    .node span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .arrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #718096;
+      font-size: 24px;
+    }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .step {
+      padding: 14px;
+      display: grid;
+      grid-template-columns: 34px 1fr;
+      gap: 10px;
+    }
+
+    .num {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #e8eef8;
+      color: #234e8d;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    .step h3 {
+      margin: 2px 0 4px;
+      font-size: 14px;
+    }
+
+    .step p {
+      color: var(--muted);
+      font-size: 13px;
+      margin: 0;
+    }
+
+    .note {
+      padding: 16px;
+      margin-top: 14px;
+      border-left: 5px solid var(--amber);
+    }
+
+    .note h3 {
+      margin: 0 0 6px;
+      font-size: 15px;
+    }
+
+    .two {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 12px;
+    }
+
+    .mono {
+      white-space: pre-wrap;
+      background: #0f172a;
+      color: #dbeafe;
+      border-radius: 8px;
+      padding: 14px;
+      overflow-x: auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+    }
+
+    @media (max-width: 850px) {
+      main { padding: 24px 16px 44px; }
+      .grid, .steps, .two { grid-template-columns: 1fr; }
+      h1 { font-size: 26px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>OpenCode Subagent Prompt Injection</h1>
+    <p class="lede">
+      The system observes OpenCode runs through Raindrop traces, lets an observer judge decide when a subagent needs steering, resolves the exact OpenCode child session, and injects a prompt into that session through the OpenCode server API.
+    </p>
+
+    <section class="grid" aria-label="architecture components">
+      <div class="box">
+        <span class="tag blue">Plant</span>
+        <h3>OpenCode parent run</h3>
+        <p>Runs the main task and launches <code>task</code> subagents. Must be attached to <code>opencode serve</code> for live REST control.</p>
+      </div>
+      <div class="box">
+        <span class="tag green">Sensor</span>
+        <h3>Raindrop Workshop</h3>
+        <p>Stores runs, spans, task outputs, observer debug traces, and steering events in SQLite and streams them in the UI.</p>
+      </div>
+      <div class="box">
+        <span class="tag violet">Controller</span>
+        <h3>Observer agent</h3>
+        <p>Reads SQLite traces, detects drift or bad work, and emits a corrective decision with a target span and prompt text.</p>
+      </div>
+      <div class="box">
+        <span class="tag amber">Actuator</span>
+        <h3>Steering actuator</h3>
+        <p>Converts a Raindrop task span into an OpenCode <code>ses_...</code> session and calls <code>prompt_async</code>.</p>
+      </div>
+    </section>
+
+    <h2>Service Map</h2>
+    <section class="diagram" aria-label="service connection diagram">
+      <div class="system-map">
+        <svg viewBox="0 0 1050 690" role="img" aria-labelledby="diagramTitle diagramDesc">
+          <title id="diagramTitle">Raindrop observer and OpenCode steering architecture</title>
+          <desc id="diagramDesc">A service diagram showing how OpenCode parent and subagent sessions emit Raindrop traces, how Workshop stores them, how the observer is triggered, and how the actuator injects nudges back into OpenCode sessions.</desc>
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#6b7280"></path>
+            </marker>
+          </defs>
+
+          <g class="svc">
+            <rect x="40" y="60" width="220" height="92" style="stroke: var(--blue); stroke-width: 2;"></rect>
+            <text x="58" y="88">Human or test runner</text>
+            <text class="small" x="58" y="112">Starts the OpenCode task</text>
+            <text class="small" x="58" y="132">Watches Raindrop UI</text>
+          </g>
+
+          <g class="svc">
+            <rect x="330" y="44" width="260" height="126" style="stroke: var(--blue); stroke-width: 2;"></rect>
+            <text x="350" y="74">OpenCode parent session</text>
+            <text class="small" x="350" y="99">Coordinator LLM run</text>
+            <text class="small" x="350" y="119">Calls tools and launches subagents</text>
+            <rect class="port" x="350" y="136" width="116" height="22" rx="5"></rect>
+            <text class="small" x="360" y="151">convo_id = ses_...</text>
+          </g>
+
+          <g class="svc">
+            <rect x="720" y="44" width="260" height="126" style="stroke: var(--blue); stroke-width: 2;"></rect>
+            <text x="740" y="74">OpenCode subagent sessions</text>
+            <text class="small" x="740" y="99">Child LLM runs from task tool</text>
+            <text class="small" x="740" y="119">Each child gets its own ses_...</text>
+            <rect class="port" x="740" y="136" width="150" height="22" rx="5"></rect>
+            <text class="small" x="750" y="151">task output includes ses_...</text>
+          </g>
+
+          <g class="svc">
+            <rect x="330" y="250" width="260" height="118" style="stroke: var(--green); stroke-width: 2;"></rect>
+            <text x="350" y="280">Raindrop Workshop API</text>
+            <text class="small" x="350" y="305">Receives spans and run updates</text>
+            <text class="small" x="350" y="325">Streams run detail to UI</text>
+            <rect class="port" x="350" y="342" width="162" height="22" rx="5"></rect>
+            <text class="small" x="360" y="357">localhost:5899</text>
+          </g>
+
+          <g class="svc">
+            <rect x="40" y="272" width="220" height="80" style="stroke: var(--green); stroke-width: 2;"></rect>
+            <text x="58" y="302">SQLite trace database</text>
+            <text class="small" x="58" y="326">Runs, spans, tool calls, events</text>
+          </g>
+
+          <g class="svc">
+            <rect x="720" y="250" width="260" height="118" style="stroke: var(--red); stroke-width: 2;"></rect>
+            <text x="740" y="280">Live Raindrop UI</text>
+            <text class="small" x="740" y="305">Runs tab: observed agent runs</text>
+            <text class="small" x="740" y="325">Observer tab: applied actions only</text>
+            <text class="small" x="740" y="345">Observer Debug: compact IO and tools</text>
+          </g>
+
+          <g class="svc">
+            <rect x="40" y="468" width="260" height="130" style="stroke: var(--violet); stroke-width: 2;"></rect>
+            <text x="60" y="498">Observer agent</text>
+            <text class="small" x="60" y="523">Runs on every meaningful handoff</text>
+            <text class="small" x="60" y="543">Reads spans and main context</text>
+            <text class="small" x="60" y="563">Decides: no action, nudge, stop, restart</text>
+            <rect class="port" x="60" y="576" width="182" height="22" rx="5"></rect>
+            <text class="small" x="70" y="591">external localhost process</text>
+          </g>
+
+          <g class="svc">
+            <rect x="390" y="468" width="260" height="130" style="stroke: var(--amber); stroke-width: 2;"></rect>
+            <text x="410" y="498">Steering actuator</text>
+            <text class="small" x="410" y="523">Resolves targetSpanId to child ses_...</text>
+            <text class="small" x="410" y="543">Writes steering event back to Workshop</text>
+            <text class="small" x="410" y="563">Calls OpenCode control API</text>
+            <rect class="port" x="410" y="576" width="156" height="22" rx="5"></rect>
+            <text class="small" x="420" y="591">localhost:3032/apply</text>
+          </g>
+
+          <g class="svc">
+            <rect x="720" y="468" width="260" height="130" style="stroke: var(--blue); stroke-width: 2;"></rect>
+            <text x="740" y="498">OpenCode server API</text>
+            <text class="small" x="740" y="523">Owns live session control</text>
+            <text class="small" x="740" y="543">prompt_async, abort, restart flow</text>
+            <text class="small" x="740" y="563">Mutates parent or subagent session</text>
+            <rect class="port" x="740" y="576" width="160" height="22" rx="5"></rect>
+            <text class="small" x="750" y="591">localhost:4096</text>
+          </g>
+
+          <path class="edge trigger" d="M260 106 C292 106 298 106 330 106"></path>
+          <text class="edge-label" x="274" y="92">start task</text>
+
+          <path class="edge trigger" d="M590 106 C636 106 674 106 720 106"></path>
+          <text class="edge-label" x="618" y="92">task tool handoff</text>
+
+          <path class="edge trace" d="M460 170 C460 198 460 222 460 250"></path>
+          <text class="edge-label" x="474" y="215">parent spans</text>
+
+          <path class="edge trace" d="M850 170 C850 208 630 214 555 250"></path>
+          <text class="edge-label" x="706" y="210">subagent spans and ses_ id</text>
+
+          <path class="edge trace" d="M330 310 C304 310 286 310 260 310"></path>
+          <text class="edge-label" x="270" y="296">persist</text>
+
+          <path class="edge ui" d="M590 309 C640 309 670 309 720 309"></path>
+          <text class="edge-label" x="624" y="295">stream</text>
+
+          <path class="edge judge" d="M150 352 C150 392 150 428 150 468"></path>
+          <text class="edge-label" x="164" y="420">read traces</text>
+
+          <path class="edge judge dashed" d="M460 368 C430 424 330 488 300 520"></path>
+          <text class="edge-label" x="312" y="430">trigger observer</text>
+
+          <path class="edge judge" d="M300 533 C332 533 358 533 390 533"></path>
+          <text class="edge-label" x="318" y="519">decision</text>
+
+          <path class="edge nudge" d="M650 533 C682 533 688 533 720 533"></path>
+          <text class="edge-label" x="666" y="519">inject</text>
+
+          <path class="edge nudge" d="M850 468 C850 406 850 232 850 170"></path>
+          <text class="edge-label" x="864" y="420">nudge child ses_...</text>
+
+          <path class="edge nudge dashed" d="M720 562 C608 646 336 654 214 598"></path>
+          <text class="edge-label" x="392" y="656">fallback nudge to parent ses_...</text>
+
+          <path class="edge trace dashed" d="M520 468 C520 432 508 402 490 368"></path>
+          <text class="edge-label" x="532" y="420">resolve target span</text>
+
+          <path class="edge ui" d="M650 562 C690 550 704 507 740 368"></path>
+          <text class="edge-label" x="666" y="466">steering event</text>
+        </svg>
+      </div>
+      <div class="legend" aria-label="diagram legend">
+        <span><i class="swatch" style="background: var(--blue)"></i>OpenCode execution and session control</span>
+        <span><i class="swatch" style="background: var(--green)"></i>Raindrop trace capture and storage</span>
+        <span><i class="swatch" style="background: var(--violet)"></i>Observer judging and trigger loop</span>
+        <span><i class="swatch" style="background: var(--amber)"></i>Nudge, stop, restart, or system-prompt update</span>
+        <span><i class="swatch" style="background: var(--red)"></i>Human-facing UI surfaces</span>
+      </div>
+    </section>
+
+    <h2>Runtime Data Flow</h2>
+    <section class="diagram" aria-label="data flow diagram">
+      <div class="lane">
+        <div class="node" style="border-left-color: var(--blue)">
+          <strong>1. OpenCode run</strong>
+          <span>Parent session starts and launches a subagent through the <code>task</code> tool.</span>
+        </div>
+        <div class="arrow">→</div>
+        <div class="node" style="border-left-color: var(--green)">
+          <strong>2. Raindrop trace</strong>
+          <span>The task span output contains <code>&lt;task id="ses_..."&gt;</code>, which is the child session id.</span>
+        </div>
+        <div class="arrow">→</div>
+        <div class="node" style="border-left-color: var(--violet)">
+          <strong>3. Observer pass</strong>
+          <span>The observer reads spans, outputs, tool calls, and main task context from SQLite.</span>
+        </div>
+        <div class="arrow">→</div>
+        <div class="node" style="border-left-color: var(--amber)">
+          <strong>4. Actuator call</strong>
+          <span>The observer posts <code>targetSpanId</code> or <code>targetSubagentSpanId</code> plus a nudge.</span>
+        </div>
+      </div>
+      <div class="lane">
+        <div class="node" style="border-left-color: var(--amber)">
+          <strong>5. Target resolver</strong>
+          <span>The actuator fetches <code>/api/runs/detail/:runId</code> and extracts the child <code>ses_...</code>.</span>
+        </div>
+        <div class="arrow">→</div>
+        <div class="node" style="border-left-color: var(--blue)">
+          <strong>6. OpenCode REST</strong>
+          <span>It calls <code>POST /session/:id/prompt_async</code> with <code>noReply: true</code>.</span>
+        </div>
+        <div class="arrow">→</div>
+        <div class="node" style="border-left-color: var(--green)">
+          <strong>7. UI event</strong>
+          <span>The actuator writes an applied or failed steering event back to Workshop.</span>
+        </div>
+        <div class="arrow">→</div>
+        <div class="node" style="border-left-color: var(--red)">
+          <strong>8. Human view</strong>
+          <span>Observer tab shows only big actions. Observer Debug shows compact inputs, outputs, and tool calls.</span>
+        </div>
+      </div>
+    </section>
+
+    <h2>What Was Built</h2>
+    <section class="steps">
+      <div class="step">
+        <span class="num">1</span>
+        <div>
+          <h3>Subagent target resolution</h3>
+          <p><code>targetSpanId</code> or <code>targetSubagentSpanId</code> can be a Raindrop <code>task</code> span. The actuator extracts the child OpenCode session from that span output.</p>
+        </div>
+      </div>
+      <div class="step">
+        <span class="num">2</span>
+        <div>
+          <h3>Direct session targeting</h3>
+          <p>If the observer already has <code>sessionId: "ses_..."</code>, the actuator skips trace lookup and targets that OpenCode session directly.</p>
+        </div>
+      </div>
+      <div class="step">
+        <span class="num">3</span>
+        <div>
+          <h3>Parent fallback</h3>
+          <p>If no child session can be found, the actuator falls back to the parent <code>run.convo_id</code> so it can steer the coordinator.</p>
+        </div>
+      </div>
+      <div class="step">
+        <span class="num">4</span>
+        <div>
+          <h3>Dry-run verification</h3>
+          <p><code>POST /resolve</code> proves how a target resolves without calling OpenCode or writing a Workshop event.</p>
+        </div>
+      </div>
+    </section>
+
+    <h2>API Shape</h2>
+    <div class="two">
+      <div class="mono">POST http://localhost:3032/apply
+{
+  "observedRunId": "d339...",
+  "targetSpanId": "4d7526759abf5c41",
+  "action": "nudge",
+  "afterPrompt": "Observer nudge: refocus..."
+}</div>
+      <div class="mono">POST http://localhost:4096/session/ses_.../prompt_async
+{
+  "noReply": true,
+  "parts": [
+    { "type": "text", "text": "Observer nudge: refocus..." }
+  ]
+}</div>
+    </div>
+
+    <section class="note">
+      <h3>Important runtime requirement</h3>
+      <p>
+        Live prompt injection requires OpenCode to be reachable through <code>opencode serve</code>. A standalone <code>opencode run</code> process still emits Raindrop traces, but it is not controllable over REST unless it is run through or attached to the server.
+      </p>
+      <p>
+        The intended launch shape is <code>opencode serve --port 4096</code> and then <code>opencode run --attach http://localhost:4096 ...</code>.
+      </p>
+    </section>
+
+    <h2>Where It Lives</h2>
+    <div class="mono">raindrop-workshop/examples/opencode-steering-actuator/server.ts
+raindrop-workshop/examples/opencode-steering-actuator/README.md
+raindrop-workshop/examples/opencode-observer-agent/server.ts
+README.md
+docs/STEERING_ACTUATOR.md</div>
+  </main>
+</body>
+</html>
