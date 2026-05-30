@@ -37,6 +37,14 @@ import { useWorkshopEvent } from "../hooks/use-workshop-ws";
 import { getCostBreakdown, fmtCost } from "../utils/costs";
 import type { RunSteeringData, SteeringEvent } from "../api/steering";
 import { getRunDetail } from "../api/runs";
+import { detectSubAgents } from "../api/query-api";
+import {
+  SteeringActionBadge,
+  steeringActionDetails,
+  steeringActionLabel,
+  steeringCorrectedDirection,
+  steeringWrongDirection,
+} from "./SteeringActionBadge";
 
 const TOKEN_NUMBER_FLOW_TIMING = {
   spinTiming: { duration: 450, easing: "ease-out" },
@@ -1028,31 +1036,6 @@ function parseToolInput(value: string | null | undefined): Record<string, unknow
   }
 }
 
-function eventActionLabel(action: SteeringEvent["action"]): string {
-  switch (action) {
-    case "system_prompt_update": return "Prompt update";
-    case "stop": return "Stop";
-    case "restart": return "Restart";
-    case "continue": return "Continue";
-    case "note": return "Note";
-    case "nudge":
-    default: return "Nudge";
-  }
-}
-
-function correctionWrongDirection(event: SteeringEvent): string {
-  return event.reason ?? event.message ?? "Observer detected wrong-direction work.";
-}
-
-function correctionRightDirection(event: SteeringEvent): string {
-  return event.after_prompt ?? event.message ?? "Observer issued a corrective action.";
-}
-
-function numberedActionLabel(event: SteeringEvent, nudgeNumber?: number): string {
-  if (event.action === "nudge" && nudgeNumber) return `Nudge ${nudgeNumber}`;
-  return eventActionLabel(event.action);
-}
-
 function formatUnknown(value: unknown): string {
   if (value == null) return "";
   if (typeof value === "string") return tryJson(value) ?? value;
@@ -1212,10 +1195,12 @@ function ObserverCorrectionCard({
   targetLabel?: string | null;
   nudgeNumber?: number;
 }) {
+  const details = steeringActionDetails(event.action);
+
   return (
-    <div className="rounded-lg p-3" style={{ background: "rgba(102,170,187,0.06)", border: "1px solid rgba(102,170,187,0.22)" }}>
+    <div className="rounded-lg p-3" style={{ background: details.bg, border: `1px solid ${details.border}` }}>
       <div className="flex items-center gap-2 mb-3">
-        <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: C.green }}>{numberedActionLabel(event, nudgeNumber)}</span>
+        <SteeringActionBadge event={event} nudgeNumber={nudgeNumber} />
         <span className="text-[10px] font-mono" style={{ color: C.fg0 }}>{event.status.replace(/_/g, " ")}</span>
         {event.confidence !== null && <span className="text-[10px] font-mono" style={{ color: C.fg0 }}>{Math.round(event.confidence * 100)}%</span>}
         {targetLabel && <span className="text-[10px] font-mono truncate" style={{ color: C.fg0 }}>target: {targetLabel}</span>}
@@ -1223,13 +1208,13 @@ function ObserverCorrectionCard({
       </div>
       <div className="grid gap-2 md:grid-cols-[1fr_auto_1fr] md:items-stretch">
         <div className="rounded-md p-2.5" style={{ background: "rgba(204,102,102,0.07)", border: "1px solid rgba(204,102,102,0.16)" }}>
-          <div className="text-[9px] uppercase tracking-wide mb-1" style={{ color: C.red }}>Wrong direction</div>
-          <div className="text-[11px] leading-relaxed whitespace-pre-wrap" style={{ color: C.fg2 }}>{correctionWrongDirection(event)}</div>
+          <div className="text-[9px] uppercase tracking-wide mb-1" style={{ color: C.red }}>{details.wrongLabel}</div>
+          <div className="text-[11px] leading-relaxed whitespace-pre-wrap" style={{ color: C.fg2 }}>{steeringWrongDirection(event)}</div>
         </div>
-        <div className="hidden md:grid place-items-center text-[11px] font-mono" style={{ color: C.green }}>-&gt;</div>
-        <div className="rounded-md p-2.5" style={{ background: "rgba(102,170,187,0.09)", border: "1px solid rgba(102,170,187,0.18)" }}>
-          <div className="text-[9px] uppercase tracking-wide mb-1" style={{ color: C.green }}>Corrected direction</div>
-          <div className="text-[11px] leading-relaxed whitespace-pre-wrap" style={{ color: C.fg3 }}>{correctionRightDirection(event)}</div>
+        <div className="hidden md:grid place-items-center text-[11px] font-mono" style={{ color: details.color }}>-&gt;</div>
+        <div className="rounded-md p-2.5" style={{ background: details.bg, border: `1px solid ${details.border}` }}>
+          <div className="text-[9px] uppercase tracking-wide mb-1" style={{ color: details.color }}>{details.rightLabel}</div>
+          <div className="text-[11px] leading-relaxed whitespace-pre-wrap" style={{ color: C.fg3 }}>{steeringCorrectedDirection(event)}</div>
         </div>
       </div>
       {event.message && event.message !== event.reason && event.message !== event.after_prompt && (
@@ -1459,7 +1444,7 @@ function ObserverPanel({
                   title={observerRun.id}
                 >
                   {(eventsByObserverRun.get(observerRun.id) ?? [])[0]
-                    ? numberedActionLabel((eventsByObserverRun.get(observerRun.id) ?? [])[0], nudgeNumberById.get((eventsByObserverRun.get(observerRun.id) ?? [])[0].id))
+                    ? steeringActionLabel((eventsByObserverRun.get(observerRun.id) ?? [])[0], nudgeNumberById.get((eventsByObserverRun.get(observerRun.id) ?? [])[0].id))
                     : "observer"} · {observerRun.id.slice(0, 8)}
                 </button>
               ))}
@@ -1788,7 +1773,10 @@ export function RunDetail({ runId, routeBase, initialData, isReplay, source, onF
       }
       if (!res.ok) throw new Error(`Could not load run (${res.status})`);
       const j = await res.json();
-      setData(j);
+      setData({
+        ...j,
+        subAgents: j.subAgents?.length ? j.subAgents : detectSubAgents(j.spans ?? []),
+      });
       setNotFound(false);
       if (j.liveEvents) setLiveEvents(j.liveEvents);
     } catch {

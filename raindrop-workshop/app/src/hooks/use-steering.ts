@@ -15,7 +15,7 @@ export function useSteering(runId: string | null | undefined) {
     queryKey,
     queryFn: () => getRunSteering(runId!),
     enabled: !!runId,
-    initialData: EMPTY_STEERING,
+    placeholderData: EMPTY_STEERING,
   });
 
   useWorkshopEvent("steering", (data: SteeringBroadcast) => {

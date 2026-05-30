@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>autoresearch-observers — Why We Built This</title>
+<style>
+  :root{
+    --ink:#0f172a; --muted:#475569; --soft:#64748b;
+    --accent:#4f46e5; --accent-2:#0ea5e9; --accent-soft:#eef2ff;
+    --line:#e2e8f0; --bg:#eef2f6; --card:#ffffff;
+    --off:#dc2626; --off-bg:#fef2f2; --on:#16a34a; --on-bg:#f0fdf4;
+  }
+  *{ box-sizing:border-box; }
+  html{ -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility; }
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,"Apple Color Emoji",sans-serif;
+    line-height:1.62; font-size:16px;
+  }
+  .page{
+    max-width:900px; margin:44px auto; background:var(--card); border-radius:18px; overflow:hidden;
+    box-shadow:0 1px 3px rgba(15,23,42,.09), 0 18px 50px rgba(15,23,42,.10);
+  }
+  .accent-bar{ height:6px; background:linear-gradient(90deg,var(--accent),var(--accent-2) 55%,var(--on)); }
+  .content{ padding:52px 60px 44px; }
+
+  /* Header */
+  .kicker{ font-size:.74rem; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:var(--accent); margin:0 0 10px; }
+  h1{ font-size:2.15rem; line-height:1.12; letter-spacing:-.02em; margin:0; }
+  .tagline{ font-size:1.12rem; color:var(--muted); margin:10px 0 0; font-weight:500; }
+
+  .oneline{
+    margin:30px 0 0; padding:20px 24px; background:var(--accent-soft);
+    border-left:4px solid var(--accent); border-radius:0 12px 12px 0; font-size:1.06rem;
+  }
+  .oneline strong{ color:var(--accent); }
+
+  /* Sections */
+  section{ margin-top:42px; }
+  .label{ font-size:.78rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); margin:0 0 6px; }
+  .head{ font-size:1.32rem; line-height:1.25; letter-spacing:-.01em; margin:0 0 16px; font-weight:700; }
+  p{ margin:0 0 12px; }
+  .muted{ color:var(--muted); }
+
+  /* Stat row */
+  .stats{ display:flex; gap:16px; margin:6px 0 20px; }
+  .stat{ flex:1; border:1px solid var(--line); border-radius:14px; padding:18px 18px 16px; background:#fcfdff; }
+  .stat .num{ font-size:1.95rem; font-weight:800; letter-spacing:-.02em; color:var(--accent); line-height:1; }
+  .stat .lbl{ font-size:.82rem; color:var(--muted); margin-top:8px; }
+
+  /* Tables */
+  table{ width:100%; border-collapse:collapse; margin:4px 0 6px; font-size:.95rem; }
+  th{ text-align:left; font-size:.72rem; letter-spacing:.08em; text-transform:uppercase; color:var(--soft); font-weight:700; padding:0 14px 10px; }
+  td{ border-top:1px solid var(--line); padding:13px 14px; vertical-align:top; }
+  td:first-child{ font-weight:650; width:36%; }
+  .gap td:last-child{ color:var(--off); font-weight:600; }
+  .loop td:first-child{ color:var(--accent); width:30%; }
+
+  /* Quotes */
+  .quote{ margin:18px 0 0; padding:18px 22px; border-radius:12px; background:#f8fafc; border:1px solid var(--line); }
+  .quote.big{ background:linear-gradient(180deg,#fbfbff,#f4f5ff); border-color:#e0e3ff; }
+  .quote p{ margin:0; font-size:1.08rem; font-style:italic; color:var(--ink); }
+  .quote cite{ display:block; margin-top:8px; font-style:normal; font-size:.85rem; color:var(--soft); }
+
+  /* Pills */
+  .pills{ display:flex; flex-wrap:wrap; gap:10px; margin:16px 0 0; }
+  .pill{ background:var(--accent-soft); color:var(--accent); border:1px solid #e0e3ff; border-radius:999px; padding:7px 15px; font-size:.9rem; font-weight:650; }
+
+  /* Why now list */
+  ul.clean{ list-style:none; padding:0; margin:0; }
+  ul.clean li{ position:relative; padding:0 0 14px 24px; }
+  ul.clean li:before{ content:""; position:absolute; left:2px; top:9px; width:8px; height:8px; border-radius:2px; background:var(--accent); }
+  ul.clean li strong{ color:var(--ink); }
+
+  /* Proof */
+  .proof{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:4px 0 18px; }
+  .col{ border:1px solid var(--line); border-radius:14px; padding:18px 20px; }
+  .col .tag{ font-size:.78rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+  .col.off{ background:var(--off-bg); border-color:#fecaca; }
+  .col.off .tag{ color:var(--off); }
+  .col.on{ background:var(--on-bg); border-color:#bbf7d0; }
+  .col.on .tag{ color:var(--on); }
+  .col p{ margin:8px 0 0; font-size:.96rem; }
+  .scoreboard{ font-size:.95rem; }
+  .scoreboard b{ color:var(--ink); }
+  .score-chips{ display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+  .score-chips span{ background:#f1f5f9; border:1px solid var(--line); border-radius:8px; padding:6px 11px; font-size:.85rem; color:var(--muted); font-weight:600; }
+
+  /* Footer */
+  .sources{ margin-top:40px; padding-top:18px; border-top:1px solid var(--line); font-size:.78rem; color:var(--soft); line-height:1.7; }
+  .sources a{ color:var(--soft); text-decoration:none; border-bottom:1px solid #cbd5e1; }
+  .sources a:hover{ color:var(--accent); border-color:var(--accent); }
+
+  @media (max-width:640px){
+    .content{ padding:34px 26px; }
+    h1{ font-size:1.7rem; }
+    .stats, .proof{ flex-direction:column; grid-template-columns:1fr; }
+  }
+  @media print{
+    body{ background:#fff; }
+    .page{ box-shadow:none; margin:0; max-width:none; border-radius:0; }
+    section{ break-inside:avoid; }
+  }
+</style>
+</head>
+<body>
+  <div class="page">
+    <div class="accent-bar"></div>
+    <div class="content">
+
+      <header>
+        <p class="kicker">Why we built this</p>
+        <h1>autoresearch&#8209;observers</h1>
+        <p class="tagline">The reliability &amp; steering layer for multi-agent research.</p>
+      </header>
+
+      <div class="oneline">
+        A fleet of agents researches a hard question in parallel. We read their <strong>live execution
+        traces</strong> and steer the swarm <strong>while it&rsquo;s still running</strong> &mdash; killing
+        duplicate work, flagging contradictions, ending stalls, refocusing drift &mdash; instead of
+        discovering the mess after the run is done.
+      </div>
+
+      <section>
+        <p class="label">The problem</p>
+        <p class="head">Multi-agent research is powerful &mdash; and broken.</p>
+        <div class="stats">
+          <div class="stat"><div class="num">~37%</div><div class="lbl">of multi-agent failures are <b>inter-agent misalignment</b> &mdash; repeating, contradicting, stalling, drifting (Berkeley MAST, 1,600+ runs)</div></div>
+          <div class="stat"><div class="num">1.5&ndash;7&times;</div><div class="lbl">more tokens burned on <b>redundant work</b> in multi-agent workflows</div></div>
+          <div class="stat"><div class="num">&gt;40%</div><div class="lbl">of agentic AI projects <b>canceled by 2027</b> &mdash; cost &amp; weak controls (Gartner)</div></div>
+        </div>
+        <p class="muted">These aren&rsquo;t random glitches. They&rsquo;re predictable, repeatable coordination
+        failures &mdash; and today they&rsquo;re only visible <em>after</em> the run, in the bill and the
+        shallow answer.</p>
+      </section>
+
+      <section>
+        <p class="label">The gap</p>
+        <p class="head">Everyone <em>watches</em> the trace. Nobody <em>reacts</em> to it.</p>
+        <table class="gap">
+          <thead><tr><th>Today&rsquo;s tools</th><th>What they do</th><th>What they miss</th></tr></thead>
+          <tbody>
+            <tr><td>Observability<br><span class="muted" style="font-weight:400">LangSmith, Langfuse, Raindrop</span></td><td>Show you the trace &mdash; after the fact</td><td>No runtime action</td></tr>
+            <tr><td>Guardrails<br><span class="muted" style="font-weight:400">NeMo, Guardrails AI</span></td><td>Gate a <b>single</b> agent&rsquo;s I/O for safety</td><td>No cross-agent coordination</td></tr>
+            <tr><td>Orchestrators<br><span class="muted" style="font-weight:400">Magentic-One, CrewAI</span></td><td>Coordinate <b>up front</b>, merge at the end</td><td>Can&rsquo;t steer mid-run</td></tr>
+          </tbody>
+        </table>
+        <div class="quote">
+          <p>&ldquo;The lead agent can&rsquo;t steer subagents, subagents can&rsquo;t coordinate, and the entire
+          system can be blocked while waiting for a single subagent to finish searching.&rdquo;</p>
+          <cite>&mdash; Anthropic, on its own multi-agent research system</cite>
+        </div>
+        <p class="muted" style="margin-top:14px"><b>Nobody reads the live trace of a running swarm and acts on it. That&rsquo;s the gap we close.</b></p>
+      </section>
+
+      <section>
+        <p class="label">Our insight</p>
+        <p class="head">The trace is a <em>sensor</em> &mdash; not a report.</p>
+        <div class="quote big">
+          <p>A trace isn&rsquo;t something you look at after the fact. It&rsquo;s something the system
+          <b>reads and reacts to at runtime.</b></p>
+        </div>
+        <p style="margin-top:18px">We turn an observability stream into a closed control loop:</p>
+        <table class="loop">
+          <tbody>
+            <tr><td>Plant</td><td>The research worker agents</td></tr>
+            <tr><td>Sensor</td><td>Their live execution traces</td></tr>
+            <tr><td>Controller</td><td>An external observer process</td></tr>
+            <tr><td>Actuator</td><td>Nudges &amp; kill signals</td></tr>
+            <tr><td>Setpoint</td><td>The research goal, as a coverage map</td></tr>
+          </tbody>
+        </table>
+        <p style="margin-top:16px">Four failure patterns &rarr; four interventions, each written back onto the trace as an auditable decision:</p>
+        <div class="pills">
+          <span class="pill">Dedupe</span>
+          <span class="pill">Reconcile contradictions</span>
+          <span class="pill">Kill stalls</span>
+          <span class="pill">Refocus drift</span>
+        </div>
+      </section>
+
+      <section>
+        <p class="label">Why now</p>
+        <p class="head">The market is pulling.</p>
+        <ul class="clean">
+          <li><strong>The category is funded.</strong> &ldquo;Observability is necessary, but it is not control&rdquo;
+          &mdash; Fiddler&rsquo;s framing for its <em>control plane for AI agents</em>. InsightFinder raised a
+          $15M Series B; Galileo shipped Agent Control. Investors are backing the control plane <em>above</em> the agent layer.</li>
+          <li><strong>The application is exploding.</strong> Long-horizon autonomous research (Sakana AI; Perplexity
+          Deep Research&rsquo;s revenue ramp) is exactly where coordination failure costs the most &mdash; and where a
+          steering layer pays for itself.</li>
+          <li><strong>Our wedge:</strong> the steering layer for long-horizon autonomous research &rarr;
+          the control plane for any agent swarm.</li>
+        </ul>
+      </section>
+
+      <section>
+        <p class="label">The proof</p>
+        <p class="head">A measured before / after.</p>
+        <p class="muted">Same hard question, same seed &mdash; observer OFF, then ON.</p>
+        <div class="proof">
+          <div class="col off">
+            <div class="tag">Observer OFF</div>
+            <p>Loops, drifts, concludes shallow &mdash; a messy trace and a half-empty coverage map.</p>
+          </div>
+          <div class="col on">
+            <div class="tag">Observer ON</div>
+            <p>Nudges fire live on the timeline; the coverage map fills; convergence in fewer steps.</p>
+          </div>
+        </div>
+        <div class="scoreboard">
+          <b>Scoreboard:</b>
+          <div class="score-chips">
+            <span>Steps-to-goal</span><span>Coverage %</span><span>Source diversity</span><span>Unsupported-claim rate</span><span>Cost / run</span>
+          </div>
+        </div>
+      </section>
+
+      <footer class="sources">
+        Evidence:
+        <a href="https://www.anthropic.com/engineering/multi-agent-research-system">Anthropic multi-agent research system</a> &middot;
+        <a href="https://arxiv.org/abs/2503.13657">MAST &mdash; &ldquo;Why Do Multi-Agent LLM Systems Fail?&rdquo; (arXiv 2503.13657, Berkeley)</a> &middot;
+        <a href="https://www.gartner.com/en/newsroom/press-releases/2025-06-25-gartner-predicts-over-40-percent-of-agentic-ai-projects-will-be-canceled-by-end-of-2027">Gartner agentic-AI forecast (2025)</a> &middot;
+        <a href="https://www.fiddler.ai/control-plane">Fiddler control plane</a> &middot;
+        <a href="https://techcrunch.com/2026/04/16/insightfinder-raises-15m-to-help-companies-figure-out-where-ai-agents-go-wrong/">InsightFinder $15M Series B</a> &middot;
+        <a href="https://thenewstack.io/galileo-agent-control-open-source/">Galileo Agent Control</a>
+      </footer>
+
+    </div>
+  </div>
+</body>
+</html>

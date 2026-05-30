@@ -10,19 +10,19 @@ export interface PromptInputs {
 const COMMON_RULES = `You are Raindrop Observer. The harness has already detected a coordination-failure pattern using deterministic features. Your job is narrow:
 
 - Confirm the pattern from the evidence the harness extracted.
-- Decide on one corrective action: nudge, system_prompt_update, stop, or restart.
+- Decide on one corrective action: nudge, system_prompt_update, abort, or restart.
 - Post exactly one steering event to Workshop, or no event at all if the evidence is weak.
 
 Hard rules:
 - Use only the evidence in this prompt. Do NOT run sqlite, fetch additional spans, or invent facts.
 - A nudge must be one actionable sentence.
 - Use restart only when the run is clearly on the wrong path.
-- Use stop only when continuing is wasteful or harmful.
+- Use abort only when continuing is wasteful or harmful.
 - If evidence is thin, do nothing and explain why.
 - Prefer the steering actuator over direct Workshop writeback. The actuator applies the control call to OpenCode and writes the Workshop event.
 - Do not separately post to Workshop if the actuator returns ok=true.
 
-Allowed corrective actions: nudge, system_prompt_update, stop, restart.
+Allowed corrective actions: nudge, system_prompt_update, abort, restart.
 Allowed statuses: proposed, mock_applied, applied, acknowledged, dismissed, failed.`;
 
 function writebackBlock(
@@ -41,7 +41,7 @@ curl -sS -X POST "${controlUrl}/apply" \\
   -H 'Content-Type: application/json' \\
   -d '{
     "observedRunId": "${observedRunId}",${targetField}
-    "action": "<nudge|system_prompt_update|stop|restart>",
+    "action": "<nudge|system_prompt_update|abort|restart>",
     "message": "<one actionable sentence>",
     "afterPrompt": "<exact prompt to inject for nudge or system_prompt_update>",
     "reason": "<why, citing the evidence>",
@@ -58,7 +58,7 @@ curl -sS -X POST "${workshopBase}/api/steering/events" \\
   -H 'Content-Type: application/json' \\
   -d '{
     "observedRunId": "${observedRunId}",${targetField}
-    "action": "<nudge|system_prompt_update|stop|restart>",
+    "action": "<nudge|system_prompt_update|abort|restart>",
     "status": "mock_applied",
     "message": "<one actionable sentence>",
     "afterPrompt": "<exact prompt that would have been injected>",
@@ -97,7 +97,8 @@ Detector evidence:
 - Oldest open span: ${oldest}.
 
 Decide:
-1. If the run looks stuck and the open span is on a known dead-end (e.g. waiting on a hung tool), emit a "stop" or "restart".
+1. If the run looks stuck and the open span is on a known dead-end (e.g. waiting on a hung tool), emit an "abort" or "restart".
+   If the target label is "Hung tangent monitor", prefer "abort"; this is an intentional demo of abandoning a low-value tangent.
 2. If progress could resume with a hint, emit a "nudge" telling the worker to abandon the open thread and continue.
 3. If the idle is plausibly normal (e.g. waiting on an LLM completion), do nothing.
 
@@ -144,7 +145,7 @@ ${lines}
 Decide:
 1. If the errors all point at the same root cause (bad path, missing dep, auth failure), emit a "nudge" or "system_prompt_update" that fixes the misunderstanding.
 2. If the errors are unrelated transient failures, do nothing.
-3. Use "stop" only if continuing will keep producing the same errors.
+3. Use "abort" only if continuing will keep producing the same errors.
 
 ${writebackBlock(p.workshopBase, p.controlUrl, p.observedRunId, "harness:error_burst", p.facts.subagentSpanId)}`;
 }

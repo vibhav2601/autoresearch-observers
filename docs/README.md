@@ -8,7 +8,8 @@ session back here.
 
 1. **[PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md)** — **the master brief.** The closed-loop
    observer-over-research-swarm concept; the locked architecture decisions (Opencode-as-server
-   workers, flat-session fan-out, local Raindrop Workshop); the 4-pattern → 4-nudge observer spec
+   workers, **native subagent-tree fan-out + external observer + gate plugin**, local Raindrop
+   Workshop); the 4-pattern → 4-nudge observer spec
    (the eval surface); the L0→L3 build plan with the L0 de-risk spike; known risks + mitigations;
    open decisions; the demo; and prize alignment.
 
@@ -18,15 +19,20 @@ session back here.
    spike. *(Lives next to its `setup.sh` + config by design — it's runnable glue, not just prose,
    so it stays with the code rather than moving here.)*
 
-3. **[STEERING_ACTUATOR.md](STEERING_ACTUATOR.md)** — implementation spec for the **actuator** (how
-   an observer decision becomes a real nudge on a worker): the two modes (auto guardrail + injected
-   guidance) mapped onto the external REST surface (`prompt{noReply}` / `abort`) vs. in-process
-   OpenCode plugin hooks, grounded hook/SDK signatures, the self-audit requirement, and L0 open
-   questions. Read before building any worker-control code. **Reconciles the earlier "steer a
-   subagent" framing with the locked flat-session decision — start here so you don't build the
-   nested-subagent version.**
+3. **[STEERING_ACTUATOR.md](STEERING_ACTUATOR.md)** — **the single actuator spec.** How an observer
+   decision becomes a real effect on a running worker, across all three levers: **nudge** (inject,
+   `prompt{noReply}`), **abandon** (`abort`), and **hard veto** (the in-process synchronous gate
+   plugin). Native-subagent-tree topology; cross-worker veto via a synchronous observer round-trip;
+   grounded version-pinned hook/SDK signatures; the self-audit requirement; config; package layout +
+   code sketch; and merged L0 probes. **Read before building any worker-control code.**
 
-4. **[OBSERVER_HARNESS.md](OBSERVER_HARNESS.md)** — the **context-management plan** for the
+4. **[Replay Steering & Nudge-Value Eval](REPLAY_STEERING_AND_EVAL.md)** — the **L3** design: how
+   Workshop replays become a counterfactual **preflight** on high-stakes interventions (abandon /
+   major refocus) — distinct from the synchronous gate plugin in #3 — and how pre-nudge "wrong path"
+   replays become a per-intervention **value metric** for the demo. Read when working on replay,
+   high-stakes steering, or the demo scoreboard.
+
+5. **[OBSERVER_HARNESS.md](OBSERVER_HARNESS.md)** — the **context-management plan** for the
    observer LLM: how the harness keeps the LLM's input small, fresh, and pattern-scoped while the
    worker swarm firehoses spans. Covers the principle (LLM never sees raw spans), the
    continuously-running reducers + bounded state model, the two-clock trigger taxonomy
@@ -36,9 +42,12 @@ session back here.
 
 ## Current status (2026-05-30)
 
-Design phase. The L0 **trace half** is scaffolded (see #2). The next gate is the L0 **control
-half** — confirm the Raindrop plugin loads under `opencode serve`, spawn flat sessions over the
-REST API, and prove stall + abort. Details in [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md) → "L0 spike".
+Design plus working prototypes. The L0 **trace half** is scaffolded (see #2). The interaction layer
+now has an external steering actuator under
+`raindrop-workshop/examples/opencode-steering-actuator/` and a synchronous hard-veto gate plugin
+under `opencode-observer-gate/`. The next gate is local end-to-end validation: confirm both plugins
+load under `opencode serve`, fan out via the native subagent harness, and prove reach (nudge into a
+child) + veto + abandon. Details in [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md) → "L0 spike".
 
 ## Keeping this useful
 

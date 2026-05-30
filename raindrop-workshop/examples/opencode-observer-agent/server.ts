@@ -118,6 +118,14 @@ interface ObserveRequest {
   model?: string;
 }
 
+interface VetoRequest {
+  sessionID?: string;
+  callID?: string;
+  tool?: string;
+  args?: unknown;
+  ts?: number;
+}
+
 interface WorkshopRun {
   id: string;
   event_name?: string | null;
@@ -332,6 +340,13 @@ function activationSignals(detail: WorkshopRunDetail | null): { key: string; rea
   return signals;
 }
 
+function textContains(value: unknown, needle: string): boolean {
+  if (typeof value === "string") return value.includes(needle);
+  if (!value || typeof value !== "object") return false;
+  if (Array.isArray(value)) return value.some((item) => textContains(item, needle));
+  return Object.values(value as Record<string, unknown>).some((item) => textContains(item, needle));
+}
+
 function startAutoWatch(serviceStartedAt: number): { stop: () => void; observed: Map<string, ObservedRunState> } {
   const observed = new Map<string, ObservedRunState>();
   let stopped = false;
@@ -509,6 +524,19 @@ export function createApp(): Express {
     const code = await runObserverOnce(runId, model, write, "manual", "manual /observe request");
     write(`\n\n[observer exited ${code ?? 0}]`);
     res.end();
+  });
+
+  app.post("/veto", (req, res) => {
+    const body = (req.body ?? {}) as VetoRequest;
+    if (textContains(body.args, "OBSERVER_HARD_VETO_TEST")) {
+      res.json({
+        decision: "deny",
+        reason: "Observer hard veto: duplicate or intentionally off-task sentinel call was blocked before execution.",
+        confidence: 1,
+      });
+      return;
+    }
+    res.json({ decision: "allow" });
   });
 
   return app;
