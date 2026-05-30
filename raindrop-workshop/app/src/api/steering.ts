@@ -1,7 +1,17 @@
 import { apiJson, jsonInit } from "./request";
 import type { Run } from "../utils/types";
 
-export type SteeringAction = "nudge" | "system_prompt_update" | "stop" | "restart" | "continue" | "note";
+export type SteeringAction =
+  | "nudge"
+  | "system_prompt_update"
+  | "abort"
+  | "stop"
+  | "restart"
+  | "hard_veto"
+  | "tool_cap"
+  | "local_guardrail"
+  | "continue"
+  | "note";
 export type SteeringStatus = "proposed" | "mock_applied" | "applied" | "acknowledged" | "dismissed" | "failed";
 
 export interface SteeringEvent {

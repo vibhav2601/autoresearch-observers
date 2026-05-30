@@ -8,7 +8,7 @@ import { randomUUID } from "crypto";
 import { normalizeOtelId } from "./ids";
 import { parseOtlpRequest } from "./parse";
 import { decodeOtlpProtobuf } from "./otlp-protobuf";
-import { upsertRun, insertSpan, upsertEventSpan, findRunByEventId, adoptRunByEventId, getRuns, getRunWithSpans, getRunsByConvoId, clearAll, upsertLiveEvent, getLiveEvents, cacheSavedRun, getCachedRun, deleteCachedRun, deleteRun, getSpanMeta, getSpanById, getSpanPayloadColumn, getSpanContext, getMostRecentlyTouchedRun, getRunById, getRunOutline, listSpansFiltered, searchRun, tailLiveEvents, listSavedEvents, getSavedEvent, upsertSavedEvent, patchSavedEvent, deleteSavedEvent, listSavedFolders, ensureSavedFolder, deleteSavedFolder, queryTraces, getObserverRunsForObservedRun, type SavedEventRow } from "./db";
+import { upsertRun, insertSpan, upsertEventSpan, findRunByEventId, adoptRunByEventId, getRuns, getRunWithSpans, getRunsByConvoId, findTaskSpanBySessionId, clearAll, upsertLiveEvent, getLiveEvents, cacheSavedRun, getCachedRun, deleteCachedRun, deleteRun, getSpanMeta, getSpanById, getSpanPayloadColumn, getSpanContext, getMostRecentlyTouchedRun, getRunById, getRunOutline, listSpansFiltered, searchRun, tailLiveEvents, listSavedEvents, getSavedEvent, upsertSavedEvent, patchSavedEvent, deleteSavedEvent, listSavedFolders, ensureSavedFolder, deleteSavedFolder, queryTraces, getObserverRunsForObservedRun, type SavedEventRow } from "./db";
 import { sliceSpanPayload } from "./payload-slice";
 import { detectSubAgents } from "./agents";
 import { applyProviderOptions, detectProvider, getProviderBaseURL, getProviderHeaders } from "./provider-options";
@@ -55,9 +55,11 @@ import {
   type AnnotationSource,
 } from "./annotations";
 import {
+  createPendingSteeringEvent,
   createSteeringEvent,
   listObserverRunsForRun,
   listSteeringEventsForRun,
+  resolvePendingSteeringEventsForTaskSpan,
   InvalidSteeringEventError,
   type SteeringAction,
   type SteeringStatus,
@@ -654,6 +656,18 @@ export async function createServer(port: number) {
             input_tokens: s.inputTokens, output_tokens: s.outputTokens,
             attributes: JSON.stringify(s.attributes),
           });
+          const resolvedEvents = resolvePendingSteeringEventsForTaskSpan(s.spanId);
+          for (const event of resolvedEvents) {
+            updatedRunIds.push(event.observed_run_id);
+            broadcast("steering", {
+              op: "insert",
+              observed_run_id: event.observed_run_id,
+              observer_run_id: event.observer_run_id,
+              target_span_id: event.target_span_id,
+              target_subagent_span_id: event.target_subagent_span_id,
+              event,
+            });
+          }
         }
 
         if (eventId && minStart) {
@@ -1643,26 +1657,61 @@ export async function createServer(port: number) {
 
   app.post("/api/steering/events", (req, res) => {
     const body = req.body && typeof req.body === "object" ? req.body as Record<string, unknown> : {};
-    const observedRunId = bodyString(body, "observed_run_id", "observedRunId");
+    const explicitObservedRunId = bodyString(body, "observed_run_id", "observedRunId");
+    let observedRunId = explicitObservedRunId;
+    const observedConvoId = bodyString(body, "observed_convo_id", "observedConvoId") ??
+      bodyString(body, "sessionID") ??
+      bodyString(body, "sessionId");
     const observerRunId = bodyString(body, "observer_run_id", "observerRunId");
     const targetSpanId = bodyString(body, "target_span_id", "targetSpanId");
-    const targetSubagentSpanId = bodyString(body, "target_subagent_span_id", "targetSubagentSpanId");
+    let targetSubagentSpanId = bodyString(body, "target_subagent_span_id", "targetSubagentSpanId");
+    if (!explicitObservedRunId && observedConvoId) {
+      const taskSpan = findTaskSpanBySessionId(observedConvoId);
+      if (taskSpan) {
+        observedRunId = taskSpan.run_id;
+        if (!targetSpanId && !targetSubagentSpanId) {
+          targetSubagentSpanId = taskSpan.id;
+        }
+      } else {
+        const runs = getRunsByConvoId(observedConvoId) as Array<{ id?: string; last_updated_at?: number | null }>;
+        observedRunId = [...runs]
+          .sort((a, b) => (b.last_updated_at ?? 0) - (a.last_updated_at ?? 0))[0]?.id;
+      }
+    }
     const beforePrompt = bodyString(body, "before_prompt", "beforePrompt");
     const afterPrompt = bodyString(body, "after_prompt", "afterPrompt");
     const action = bodyString(body, "action") as SteeringAction | undefined;
     const status = bodyString(body, "status") as SteeringStatus | undefined;
     const confidence = typeof body.confidence === "number" ? body.confidence : undefined;
 
-    if (!observedRunId) {
-      res.status(400).json({ error: "observed_run_id required" });
-      return;
-    }
     if (!action) {
       res.status(400).json({ error: "action required" });
       return;
     }
 
     try {
+      if (!observedRunId && observedConvoId) {
+        const event = createPendingSteeringEvent({
+          observed_convo_id: observedConvoId,
+          observer_run_id: observerRunId,
+          target_span_id: targetSpanId,
+          target_subagent_span_id: targetSubagentSpanId,
+          action,
+          status,
+          message: bodyString(body, "message"),
+          before_prompt: beforePrompt,
+          after_prompt: afterPrompt,
+          reason: bodyString(body, "reason"),
+          source: bodyString(body, "source") ?? "external-observer",
+          confidence,
+        });
+        res.status(202).json({ ok: true, pending: true, event });
+        return;
+      }
+      if (!observedRunId) {
+        res.status(400).json({ error: "observed_run_id or observed_convo_id required" });
+        return;
+      }
       const event = createSteeringEvent({
         observed_run_id: observedRunId,
         observer_run_id: observerRunId,
@@ -1861,6 +1910,16 @@ export async function createServer(port: number) {
         input_tokens: s.input_tokens ?? undefined, output_tokens: s.output_tokens ?? undefined,
         attributes: s.attributes ?? undefined,
       });
+      for (const event of resolvePendingSteeringEventsForTaskSpan(s.id)) {
+        broadcast("steering", {
+          op: "insert",
+          observed_run_id: event.observed_run_id,
+          observer_run_id: event.observer_run_id,
+          target_span_id: event.target_span_id,
+          target_subagent_span_id: event.target_subagent_span_id,
+          event,
+        });
+      }
     }
     broadcast("spans", { runIds: [run.id] });
     res.json({ ok: true, runId: run.id });

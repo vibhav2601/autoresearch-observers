@@ -5,6 +5,7 @@
 import migration0000Path from "../../drizzle/0000_massive_winter_soldier.sql" with { type: "file" };
 import migration0001Path from "../../drizzle/0001_cynical_betty_brant.sql" with { type: "file" };
 import migration0002Path from "../../drizzle/0002_observer_steering_events.sql" with { type: "file" };
+import migration0003Path from "../../drizzle/0003_shiny_sharon_ventura.sql" with { type: "file" };
 
 export const embeddedMigrationJournal = {
   "version": "7",
@@ -30,6 +31,13 @@ export const embeddedMigrationJournal = {
       "when": 1780166400000,
       "tag": "0002_observer_steering_events",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1780183435981,
+      "tag": "0003_shiny_sharon_ventura",
+      "breakpoints": true
     }
   ]
 } as const;
@@ -46,5 +54,9 @@ export const embeddedMigrationFiles = [
   {
     relativePath: "0002_observer_steering_events.sql",
     sourcePath: migration0002Path,
+  },
+  {
+    relativePath: "0003_shiny_sharon_ventura.sql",
+    sourcePath: migration0003Path,
   },
 ] as const;

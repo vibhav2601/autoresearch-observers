@@ -162,6 +162,9 @@ function detectSubAgents(spans: Span[]): SubAgent[] {
       if (grandkids.some(g => g.span_type === "TOOL_CALL")) { hasAgenticLoop = true; break; }
       if (llm.name === "agent.subagent") { hasAgenticLoop = true; break; }
     }
+    if (!hasAgenticLoop && span.name === "task" && kids.some(k => k.name === "Subagent")) {
+      hasAgenticLoop = true;
+    }
     if (!hasAgenticLoop) continue;
 
     const allSpanIds: string[] = [];

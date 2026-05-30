@@ -1,0 +1,18 @@
+{
+  "observer": {
+    "url": "http://127.0.0.1:4555/veto",
+    "timeoutMs": 100,
+    "tools": ["websearch", "webfetch"]
+  },
+  "guardrails": {
+    "denyTools": ["bash:rm*"],
+    "maxToolCalls": {
+      "websearch": 8
+    }
+  },
+  "guidance": {
+    "standingSystem": [
+      "Stay on your assigned subquestion. Report when coverage stalls."
+    ]
+  }
+}

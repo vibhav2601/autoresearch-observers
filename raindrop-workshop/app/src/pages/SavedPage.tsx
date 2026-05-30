@@ -1074,6 +1074,9 @@ function detectSubAgentsFromSpans(spans: Span[]): SubAgent[] {
       const gk = children.get(llm.id) ?? [];
       if (gk.some(g => g.span_type === "TOOL_CALL") || llm.name === "agent.subagent") { hasAgenticLoop = true; break; }
     }
+    if (!hasAgenticLoop && span.name === "task" && kids.some(k => k.name === "Subagent")) {
+      hasAgenticLoop = true;
+    }
     if (!hasAgenticLoop) continue;
     const collected = new Set<string>();
     const allIds: string[] = [];

@@ -676,8 +676,22 @@ export function getRunsByConvoId(convoId: string) {
     .all();
 }
 
+export function findTaskSpanBySessionId(sessionId: string): { id: string; run_id: string } | null {
+  return getDrizzleDb()
+    .select({ id: schema.spans.id, run_id: schema.spans.run_id })
+    .from(schema.spans)
+    .where(and(
+      eq(schema.spans.name, "task"),
+      eq(schema.spans.span_type, "TOOL_CALL"),
+      like(schema.spans.output_payload, `%${sessionId}%`),
+    ))
+    .orderBy(desc(schema.spans.end_time_ms))
+    .get() ?? null;
+}
+
 export function clearAll() {
   getDrizzleDb().transaction((tx) => {
+    tx.delete(schema.pending_steering_events).run();
     tx.delete(schema.steering_events).run();
     tx.delete(schema.live_events).run();
     tx.delete(schema.spans).run();

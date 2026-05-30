@@ -80,6 +80,9 @@ export function detectSubAgents(spans: SpanRow[]): SubAgent[] {
         break;
       }
     }
+    if (!hasAgenticLoop && span.name === "task" && kids.some(k => k.name === "Subagent")) {
+      hasAgenticLoop = true;
+    }
 
     if (!hasAgenticLoop) continue;
 
