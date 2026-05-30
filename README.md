@@ -43,3 +43,32 @@ The nudge/control bridge can be mocked initially. The UI should still surface:
 - only high-signal corrective actions in the main Observer tab,
 - compact observer inputs, outputs, and tool calls,
 - no observer runs in the primary Runs list.
+
+## Modified Raindrop Workshop
+
+[`raindrop-workshop/`](./raindrop-workshop/) vendors the Workshop source with
+the observer implementation applied. It includes:
+
+- a `steering_events` SQLite table and API,
+- an OpenCode observer example at
+  [`raindrop-workshop/examples/opencode-observer-agent/`](./raindrop-workshop/examples/opencode-observer-agent/),
+- hidden observer runs in the main run list,
+- Observer and Observer Debug tabs in the run UI,
+- compact debug rendering for observer inputs, outputs, and tool calls.
+
+Run it from this repo:
+
+```bash
+cd raindrop-workshop
+bun install
+bun run build:ui
+RAINDROP_WORKSHOP_PORT=5899 bun src/index.ts workshop serve
+```
+
+In a second terminal, run the observer:
+
+```bash
+cd raindrop-workshop/examples/opencode-observer-agent
+bun install
+PORT=3031 RAINDROP_WORKSHOP_URL=http://localhost:5899 bun run dev
+```
