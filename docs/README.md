@@ -26,6 +26,14 @@ session back here.
    subagent" framing with the locked flat-session decision — start here so you don't build the
    nested-subagent version.**
 
+4. **[OBSERVER_HARNESS.md](OBSERVER_HARNESS.md)** — the **context-management plan** for the
+   observer LLM: how the harness keeps the LLM's input small, fresh, and pattern-scoped while the
+   worker swarm firehoses spans. Covers the principle (LLM never sees raw spans), the
+   continuously-running reducers + bounded state model, the two-clock trigger taxonomy
+   (event-driven + clock-driven), the coalescing queue with re-read-at-dequeue, the
+   per-`(scope, pattern)` cooldown matrix with escalation bypass, and a gap analysis vs. the current
+   skeleton. Read before building observer detection, queueing, or prompt-shaping code.
+
 ## Current status (2026-05-30)
 
 Design phase. The L0 **trace half** is scaffolded (see #2). The next gate is the L0 **control
