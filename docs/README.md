@@ -18,6 +18,14 @@ session back here.
    spike. *(Lives next to its `setup.sh` + config by design — it's runnable glue, not just prose,
    so it stays with the code rather than moving here.)*
 
+3. **[STEERING_ACTUATOR.md](STEERING_ACTUATOR.md)** — implementation spec for the **actuator** (how
+   an observer decision becomes a real nudge on a worker): the two modes (auto guardrail + injected
+   guidance) mapped onto the external REST surface (`prompt{noReply}` / `abort`) vs. in-process
+   OpenCode plugin hooks, grounded hook/SDK signatures, the self-audit requirement, and L0 open
+   questions. Read before building any worker-control code. **Reconciles the earlier "steer a
+   subagent" framing with the locked flat-session decision — start here so you don't build the
+   nested-subagent version.**
+
 ## Current status (2026-05-30)
 
 Design phase. The L0 **trace half** is scaffolded (see #2). The next gate is the L0 **control
