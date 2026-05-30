@@ -10,16 +10,17 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Activity, Bookmark, Search, Settings } from "lucide-react";
+import { Activity, Bookmark, Search, Settings, Gauge } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { RaindropLogo } from "./RaindropLogo";
 
-export type Page = "runs" | "search" | "saved" | "settings";
+export type Page = "runs" | "search" | "saved" | "bench" | "settings";
 
 const NAV_ITEMS: { id: Page; label: string; path: string; icon: typeof Activity }[] = [
   { id: "runs", label: "runs", path: "/runs", icon: Activity },
   { id: "search", label: "search", path: "/search", icon: Search },
   { id: "saved", label: "saved", path: "/saved", icon: Bookmark },
+  { id: "bench", label: "bench", path: "/bench", icon: Gauge },
 ];
 
 const WORKSHOP_LOGO_URL = `${__RAINDROP_ASSETS_BASE_URL__}/assets/workshop/${encodeURIComponent(__RAINDROP_VERSION__)}/logo.svg`;

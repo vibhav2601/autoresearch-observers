@@ -18,6 +18,7 @@ const OPENCODE_CONTROL_URL = process.env.OPENCODE_CONTROL_URL ?? "http://localho
 const WATCH_EVENT_NAME = process.env.OPENCODE_OBSERVER_WATCH_EVENT ?? "opencode_session";
 const WATCH_POLL_MS = Number(process.env.OPENCODE_OBSERVER_POLL_MS ?? 2000);
 const ACTIVE_OBSERVE_MS = Number(process.env.OPENCODE_OBSERVER_ACTIVE_MS ?? 10000);
+const OBSERVER_DISABLED = process.env.OBSERVER_DISABLED === "1";
 const WORKSHOP_DB_PATH =
   process.env.RAINDROP_WORKSHOP_DB_PATH ??
   path.join(homedir(), ".raindrop", "raindrop_workshop.db");
@@ -276,6 +277,7 @@ function shouldTrackRun(run: WorkshopRun, serviceStartedAt: number): boolean {
   try {
     const metadata = run.metadata ? JSON.parse(run.metadata) : null;
     if (metadata?.role === "observer" || metadata?.observedRunId) return false;
+    if (metadata?.benchObserver === "off") return false;
   } catch {}
   if (!run.finished) return true;
   return (run.started_at ?? 0) >= serviceStartedAt - 1000;
@@ -407,6 +409,7 @@ function startAutoWatch(serviceStartedAt: number): { stop: () => void; observed:
 
   async function tick() {
     if (stopped || inFlight) return;
+    if (OBSERVER_DISABLED) return;
     inFlight = true;
     try {
       const res = await fetch(`${WORKSHOP_BASE}/api/runs`);
@@ -490,6 +493,7 @@ export function createApp(): Express {
       model: DEFAULT_MODEL,
       pollMs: WATCH_POLL_MS,
       activeObserveMs: ACTIVE_OBSERVE_MS,
+      disabled: OBSERVER_DISABLED,
       observedRuns: [...watcher.observed.values()].map((state) => ({
         runId: state.runId,
         inFlight: state.inFlight,
