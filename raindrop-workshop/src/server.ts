@@ -62,6 +62,7 @@ import {
   type SteeringAction,
   type SteeringStatus,
 } from "./steering";
+import { startBenchRun } from "./bench";
 import { replayDefaultDemoTraces } from "./demo-traces";
 
 function parseAnnotationSource(value: unknown): AnnotationSource | null {
@@ -1702,6 +1703,30 @@ export async function createServer(port: number) {
     } catch (err) {
       res.status(500).json({ error: String(err) });
     }
+  });
+
+  app.post("/api/bench/run", (req, res) => {
+    const body = req.body && typeof req.body === "object" ? (req.body as Record<string, unknown>) : {};
+    const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
+    const observer = body.observer === "off" ? "off" : body.observer === "on" ? "on" : null;
+    const cwd = typeof body.cwd === "string" && body.cwd.trim() ? body.cwd.trim() : undefined;
+    const model = typeof body.model === "string" && body.model.trim() ? body.model.trim() : undefined;
+    if (!prompt) {
+      res.status(400).json({ error: "prompt required" });
+      return;
+    }
+    if (!observer) {
+      res.status(400).json({ error: "observer must be 'off' or 'on'" });
+      return;
+    }
+    const { benchId } = startBenchRun(
+      { prompt, cwd, model, observer },
+      {
+        emit: (event) => broadcast("bench_event", event),
+        workshopBase: `http://localhost:${port}`,
+      },
+    );
+    res.status(202).json({ ok: true, benchId, observer });
   });
 
   // Saved run cache — persists across clears

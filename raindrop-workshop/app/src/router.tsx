@@ -14,6 +14,7 @@ import { RunsPage } from "./pages/RunsPage";
 import { SearchPage } from "./pages/SearchPage";
 import { SavedPage } from "./pages/SavedPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { BenchPage } from "./pages/BenchPage";
 import { sendWorkshopMessage, useWorkshopConnected } from "./hooks/use-workshop-ws";
 import { useAgentUiCommands } from "./hooks/use-agent-ui-commands";
 import { runPath } from "./utils/navigation";
@@ -119,6 +120,7 @@ export const router = createBrowserRouter([
       { path: "saved/:runId/observer-debug", element: <SavedPage /> },
       { path: "saved/:runId", element: <SavedPage /> },
       { path: "saved", element: <SavedPage /> },
+      { path: "bench", element: <BenchPage /> },
       { path: "settings", element: <SettingsPage /> },
       { path: "*", element: <Navigate to="/runs" replace /> },
     ],
