@@ -10,7 +10,8 @@ const DEFAULT_PORT = Number(process.env.PORT ?? 3032);
 const WORKSHOP_BASE = process.env.RAINDROP_WORKSHOP_URL ?? "http://localhost:5899";
 const OPENCODE_BASE = process.env.OPENCODE_BASE_URL ?? "http://localhost:4096";
 
-type SteeringAction = "nudge" | "system_prompt_update" | "stop" | "restart";
+type SteeringAction = "nudge" | "system_prompt_update" | "abort" | "stop" | "restart";
+type CanonicalSteeringAction = Exclude<SteeringAction, "stop">;
 type SteeringStatus = "applied" | "failed" | "resolved";
 
 interface ApplyRequest {
@@ -49,7 +50,7 @@ interface WorkshopRunDetail {
 
 interface ApplyResult {
   ok: boolean;
-  action: SteeringAction;
+  action: CanonicalSteeringAction;
   status: SteeringStatus;
   sessionId: string | null;
   target: {
@@ -211,14 +212,14 @@ function promptText(body: ApplyRequest): string {
   return clean(body.afterPrompt) ?? clean(body.message) ?? "Observer nudge: refocus on the assigned task using the trace evidence.";
 }
 
-async function callOpenCodePrompt(sessionId: string, text: string, delivery: "immediate" | "deferred" = "immediate"): Promise<ApplyResult["opencode"]> {
-  const endpoint = `/api/session/${encodeURIComponent(sessionId)}/prompt`;
+async function callOpenCodePrompt(sessionId: string, text: string, noReply = true): Promise<ApplyResult["opencode"]> {
+  const endpoint = `/session/${encodeURIComponent(sessionId)}/prompt_async`;
   const response = await fetch(`${OPENCODE_BASE}${endpoint}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      delivery,
-      prompt: { text },
+      noReply,
+      parts: [{ type: "text", text }],
     }),
   });
   const body = await readResponse(response);
@@ -246,7 +247,7 @@ function opencodeAccepted(opencode: ApplyResult["opencode"]): boolean {
   return opencode.status !== null && opencode.status >= 200 && opencode.status < 300;
 }
 
-async function postWorkshopEvent(body: ApplyRequest, status: SteeringStatus, message: string | null, reason: string | null): Promise<unknown> {
+async function postWorkshopEvent(body: ApplyRequest & { action: CanonicalSteeringAction }, status: SteeringStatus, message: string | null, reason: string | null): Promise<unknown> {
   const observedRunId = clean(body.observedRunId);
   if (!observedRunId) return null;
   const response = await fetch(`${WORKSHOP_BASE}/api/steering/events`, {
@@ -270,10 +271,15 @@ async function postWorkshopEvent(body: ApplyRequest, status: SteeringStatus, mes
   return await readResponse(response);
 }
 
+function normalizeAction(action: SteeringAction | undefined): CanonicalSteeringAction | null {
+  if (action === "stop") return "abort";
+  return action ?? null;
+}
+
 async function applySteering(rawBody: ApplyRequest, actionOverride?: SteeringAction): Promise<ApplyResult> {
-  const action = actionOverride ?? rawBody.action;
+  const action = normalizeAction(actionOverride ?? rawBody.action);
   if (!action) throw new Error("action is required");
-  if (!["nudge", "system_prompt_update", "stop", "restart"].includes(action)) {
+  if (!["nudge", "system_prompt_update", "abort", "restart"].includes(action)) {
     throw new Error(`unsupported action: ${action}`);
   }
   const body = { ...rawBody, action };
@@ -312,17 +318,17 @@ async function applySteering(rawBody: ApplyRequest, actionOverride?: SteeringAct
 
   let opencode: ApplyResult["opencode"];
   try {
-    if (action === "stop") {
+    if (action === "abort") {
       opencode = await callOpenCodeAbort(sessionId);
     } else if (action === "restart") {
       const abort = await callOpenCodeAbort(sessionId);
       if (!opencodeAccepted(abort)) {
         opencode = abort;
       } else {
-        opencode = await callOpenCodePrompt(sessionId, promptText(body), "immediate");
+        opencode = await callOpenCodePrompt(sessionId, promptText(body), false);
       }
     } else {
-      opencode = await callOpenCodePrompt(sessionId, promptText(body), "immediate");
+      opencode = await callOpenCodePrompt(sessionId, promptText(body), true);
     }
   } catch (err) {
     opencode = {
@@ -334,7 +340,7 @@ async function applySteering(rawBody: ApplyRequest, actionOverride?: SteeringAct
   }
 
   const status: SteeringStatus = opencodeAccepted(opencode) ? "applied" : "failed";
-  const message = clean(body.message) ?? (action === "stop" ? "Observer stopped this OpenCode session." : promptText(body));
+  const message = clean(body.message) ?? (action === "abort" ? "Observer aborted this OpenCode session." : promptText(body));
   const reason = clean(body.reason) ?? (status === "applied" ? `OpenCode accepted ${action}.` : `OpenCode did not accept ${action}.`);
   const workshopEvent = body.writeWorkshop === false ? undefined : await postWorkshopEvent(body, status, message, reason);
 
@@ -381,6 +387,7 @@ export function createApp(): Express {
   });
   app.post("/nudge", (req, res) => { void handle(req, res, "nudge"); });
   app.post("/system_prompt_update", (req, res) => { void handle(req, res, "system_prompt_update"); });
+  app.post("/abort", (req, res) => { void handle(req, res, "abort"); });
   app.post("/stop", (req, res) => { void handle(req, res, "stop"); });
   app.post("/restart", (req, res) => { void handle(req, res, "restart"); });
 

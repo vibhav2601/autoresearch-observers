@@ -3,7 +3,17 @@ import { and, asc, desc, eq, or } from "drizzle-orm";
 import { getDrizzleDb } from "./db";
 import { spans, steering_events } from "./db/schema";
 
-export type SteeringAction = "nudge" | "system_prompt_update" | "stop" | "restart" | "continue" | "note";
+export type SteeringAction =
+  | "nudge"
+  | "system_prompt_update"
+  | "abort"
+  | "stop"
+  | "restart"
+  | "hard_veto"
+  | "tool_cap"
+  | "local_guardrail"
+  | "continue"
+  | "note";
 export type SteeringStatus = "proposed" | "mock_applied" | "applied" | "acknowledged" | "dismissed" | "failed";
 
 export interface SteeringEvent {
@@ -41,8 +51,12 @@ export interface CreateSteeringEventInput {
 const ACTIONS: ReadonlySet<SteeringAction> = new Set([
   "nudge",
   "system_prompt_update",
+  "abort",
   "stop",
   "restart",
+  "hard_veto",
+  "tool_cap",
+  "local_guardrail",
   "continue",
   "note",
 ]);

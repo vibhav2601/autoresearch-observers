@@ -10,6 +10,13 @@ import type { Annotation, AnnotationKind } from "../hooks/use-annotations";
 import { DeepLinkedText } from "../utils/deep-links";
 import { sendWorkshopMessage } from "../hooks/use-workshop-ws";
 import type { SteeringEvent } from "../api/steering";
+import {
+  SteeringActionBadge,
+  steeringActionDetails,
+  steeringActionLabel,
+  steeringCorrectedDirection,
+  steeringWrongDirection,
+} from "./SteeringActionBadge";
 
 function CollapsibleSection({ title, preview, data, maxExpand = 3 }: { title: string; preview: string; data: unknown; maxExpand?: number }) {
   const [open, setOpen] = useState(false);
@@ -56,35 +63,26 @@ function typeInfo(span: Span) {
   return TYPE_LABEL.INTERNAL;
 }
 
-function steeringActionLabel(action: SteeringEvent["action"]): string {
-  return action.replace(/_/g, " ");
-}
-
-function steeringWrongDirection(event: SteeringEvent): string {
-  return event.reason ?? event.message ?? "Observer detected wrong-direction work on this span.";
-}
-
-function steeringCorrectedDirection(event: SteeringEvent): string {
-  return event.after_prompt ?? event.message ?? "Observer issued a corrective nudge.";
-}
-
 function SteeringCorrectionFlow({ event, label }: { event: SteeringEvent; label: string }) {
+  const details = steeringActionDetails(event.action);
+
   return (
-    <div className="rounded-md p-2.5" style={{ background: "rgba(0,0,0,0.18)", border: "1px solid rgba(255,255,255,0.06)" }}>
+    <div className="rounded-md p-2.5" style={{ background: "rgba(0,0,0,0.18)", border: `1px solid ${details.border}` }}>
       <div className="flex items-center gap-2 text-[10px] font-mono mb-2" style={{ color: C.fg0 }}>
-        <span style={{ color: C.green }}>{label}</span>
+        <SteeringActionBadge event={event} compact />
+        <span style={{ color: details.color }}>{label}</span>
         <span>{event.status.replace(/_/g, " ")}</span>
         {event.confidence !== null && <span>{Math.round(event.confidence * 100)}%</span>}
         <span className="ml-auto">{new Date(event.created_at).toLocaleTimeString()}</span>
       </div>
       <div className="grid gap-2 md:grid-cols-[1fr_auto_1fr] md:items-stretch">
         <div className="rounded p-2" style={{ background: "rgba(204,102,102,0.07)", border: "1px solid rgba(204,102,102,0.16)" }}>
-          <div className="text-[9px] uppercase tracking-wide mb-1" style={{ color: C.red }}>Wrong direction</div>
+          <div className="text-[9px] uppercase tracking-wide mb-1" style={{ color: C.red }}>{details.wrongLabel}</div>
           <div className="text-[10px] leading-relaxed whitespace-pre-wrap" style={{ color: C.fg2 }}>{steeringWrongDirection(event)}</div>
         </div>
-        <div className="hidden md:grid place-items-center text-[11px] font-mono" style={{ color: C.green }}>-&gt;</div>
-        <div className="rounded p-2" style={{ background: "rgba(102,170,187,0.08)", border: "1px solid rgba(102,170,187,0.18)" }}>
-          <div className="text-[9px] uppercase tracking-wide mb-1" style={{ color: C.green }}>Corrected direction</div>
+        <div className="hidden md:grid place-items-center text-[11px] font-mono" style={{ color: details.color }}>-&gt;</div>
+        <div className="rounded p-2" style={{ background: details.bg, border: `1px solid ${details.border}` }}>
+          <div className="text-[9px] uppercase tracking-wide mb-1" style={{ color: details.color }}>{details.rightLabel}</div>
           <div className="text-[10px] leading-relaxed whitespace-pre-wrap" style={{ color: C.fg3 }}>{steeringCorrectedDirection(event)}</div>
         </div>
       </div>
@@ -109,6 +107,7 @@ function SpanRow({ span, depth, minTime, totalDur, selected, flashing, onClick, 
   const isErr = span.status === "ERROR";
   const hasSteering = steeringEvents.length > 0;
   const latestSteering = steeringEvents[steeringEvents.length - 1];
+  const latestSteeringDetails = latestSteering ? steeringActionDetails(latestSteering.action) : null;
   const leftPct = totalDur > 0 ? ((span.start_time_ms - minTime) / totalDur) * 100 : 0;
   const widthPct = totalDur > 0 ? Math.max((span.duration_ms / totalDur) * 100, 0.5) : 100;
 
@@ -119,8 +118,8 @@ function SpanRow({ span, depth, minTime, totalDur, selected, flashing, onClick, 
       style={{
         minHeight: 28,
         borderBottom: "1px solid rgba(255,255,255,0.03)",
-        background: flashing ? "rgba(96,165,250,0.15)" : selected ? "rgba(255,255,255,0.04)" : hasSteering ? "rgba(102,170,187,0.08)" : isErr ? "rgba(204,102,102,0.04)" : "transparent",
-        borderLeft: flashing ? `2px solid #60a5fa` : selected ? `2px solid ${C.fg2}` : hasSteering ? `2px solid ${C.green}` : isErr ? `2px solid ${C.red}` : "2px solid transparent",
+        background: flashing ? "rgba(96,165,250,0.15)" : selected ? "rgba(255,255,255,0.04)" : latestSteeringDetails ? latestSteeringDetails.bg : isErr ? "rgba(204,102,102,0.04)" : "transparent",
+        borderLeft: flashing ? `2px solid #60a5fa` : selected ? `2px solid ${C.fg2}` : latestSteeringDetails ? `2px solid ${latestSteeringDetails.color}` : isErr ? `2px solid ${C.red}` : "2px solid transparent",
         transition: "background 0.4s ease, border-left 0.4s ease",
       }}
       onClick={onClick}
@@ -143,13 +142,7 @@ function SpanRow({ span, depth, minTime, totalDur, selected, flashing, onClick, 
           />
         ))}
         {hasSteering && (
-          <span
-            className="text-[9px] font-mono font-semibold px-1.5 py-0.5 rounded"
-            style={{ color: C.green, background: "rgba(102,170,187,0.14)", border: "1px solid rgba(102,170,187,0.24)" }}
-            title={latestSteering?.message ?? "Observer nudge"}
-          >
-            nudge
-          </span>
+          <SteeringActionBadge event={latestSteering} compact />
         )}
       </div>
       <div className="flex-1 relative mx-2" style={{ height: 10 }}>
@@ -159,8 +152,8 @@ function SpanRow({ span, depth, minTime, totalDur, selected, flashing, onClick, 
             width: `${widthPct}%`,
             top: 0,
             height: 10,
-            backgroundColor: hasSteering ? C.green : isErr ? C.red : color,
-            boxShadow: hasSteering ? `0 0 10px ${C.green}90` : isErr ? `0 0 8px ${C.red}80` : `0 0 8px ${color}80`,
+            backgroundColor: latestSteeringDetails ? latestSteeringDetails.color : isErr ? C.red : color,
+            boxShadow: latestSteeringDetails ? `0 0 10px ${latestSteeringDetails.color}90` : isErr ? `0 0 8px ${C.red}80` : `0 0 8px ${color}80`,
             opacity: selected || flashing ? 1 : 0.88,
             minWidth: 2,
           }} />
@@ -185,7 +178,7 @@ function SpanDetail({ span, steeringEvents = [] }: { span: Span; steeringEvents?
             {info.label}
           </span>
           {isErr && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ color: C.red, background: "rgba(204,102,102,0.1)" }}>ERROR</span>}
-          {steeringEvents.length > 0 && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ color: C.green, background: "rgba(102,170,187,0.12)", border: "1px solid rgba(102,170,187,0.22)" }}>OBSERVER NUDGE</span>}
+          {steeringEvents.length > 0 && <SteeringActionBadge event={steeringEvents[steeringEvents.length - 1]} compact />}
           {(() => { const p = detectProvider(span.model, span.provider); return p ? <span className="text-[9px] font-mono font-medium px-1.5 py-0.5 rounded" style={{ color: C.fg1, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>{p.label}</span> : null; })()}
         </div>
         <div className="text-sm font-mono font-medium" style={{ color: C.fg4 }}>{span.name}</div>
@@ -201,12 +194,12 @@ function SpanDetail({ span, steeringEvents = [] }: { span: Span; steeringEvents?
 
       {steeringEvents.length > 0 && (
         <div className="rounded-lg p-3 space-y-2" style={{ background: "rgba(102,170,187,0.07)", border: "1px solid rgba(102,170,187,0.2)" }}>
-          <div className="text-[9px] uppercase tracking-wide font-semibold" style={{ color: C.green }}>Observer correction on this span</div>
+          <div className="text-[9px] uppercase tracking-wide font-semibold" style={{ color: steeringActionDetails(steeringEvents[steeringEvents.length - 1].action).color }}>Observer action on this span</div>
           {steeringEvents.map((event, index) => (
             <SteeringCorrectionFlow
               key={event.id}
               event={event}
-              label={event.action === "nudge" ? `nudge ${index + 1}` : steeringActionLabel(event.action)}
+              label={steeringActionLabel(event, event.action === "nudge" ? index + 1 : undefined)}
             />
           ))}
         </div>

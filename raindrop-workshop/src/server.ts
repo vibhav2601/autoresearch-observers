@@ -8,7 +8,7 @@ import { randomUUID } from "crypto";
 import { normalizeOtelId } from "./ids";
 import { parseOtlpRequest } from "./parse";
 import { decodeOtlpProtobuf } from "./otlp-protobuf";
-import { upsertRun, insertSpan, upsertEventSpan, findRunByEventId, adoptRunByEventId, getRuns, getRunWithSpans, getRunsByConvoId, clearAll, upsertLiveEvent, getLiveEvents, cacheSavedRun, getCachedRun, deleteCachedRun, deleteRun, getSpanMeta, getSpanById, getSpanPayloadColumn, getSpanContext, getMostRecentlyTouchedRun, getRunById, getRunOutline, listSpansFiltered, searchRun, tailLiveEvents, listSavedEvents, getSavedEvent, upsertSavedEvent, patchSavedEvent, deleteSavedEvent, listSavedFolders, ensureSavedFolder, deleteSavedFolder, queryTraces, getObserverRunsForObservedRun, type SavedEventRow } from "./db";
+import { upsertRun, insertSpan, upsertEventSpan, findRunByEventId, adoptRunByEventId, getRuns, getRunWithSpans, getRunsByConvoId, findTaskSpanBySessionId, clearAll, upsertLiveEvent, getLiveEvents, cacheSavedRun, getCachedRun, deleteCachedRun, deleteRun, getSpanMeta, getSpanById, getSpanPayloadColumn, getSpanContext, getMostRecentlyTouchedRun, getRunById, getRunOutline, listSpansFiltered, searchRun, tailLiveEvents, listSavedEvents, getSavedEvent, upsertSavedEvent, patchSavedEvent, deleteSavedEvent, listSavedFolders, ensureSavedFolder, deleteSavedFolder, queryTraces, getObserverRunsForObservedRun, type SavedEventRow } from "./db";
 import { sliceSpanPayload } from "./payload-slice";
 import { detectSubAgents } from "./agents";
 import { applyProviderOptions, detectProvider, getProviderBaseURL, getProviderHeaders } from "./provider-options";
@@ -1642,10 +1642,27 @@ export async function createServer(port: number) {
 
   app.post("/api/steering/events", (req, res) => {
     const body = req.body && typeof req.body === "object" ? req.body as Record<string, unknown> : {};
-    const observedRunId = bodyString(body, "observed_run_id", "observedRunId");
+    let observedRunId = bodyString(body, "observed_run_id", "observedRunId");
+    const observedConvoId = bodyString(body, "observed_convo_id", "observedConvoId") ??
+      bodyString(body, "sessionID") ??
+      bodyString(body, "sessionId");
+    if (!observedRunId && observedConvoId) {
+      const runs = getRunsByConvoId(observedConvoId) as Array<{ id?: string; last_updated_at?: number | null }>;
+      observedRunId = [...runs]
+        .sort((a, b) => (b.last_updated_at ?? 0) - (a.last_updated_at ?? 0))[0]?.id;
+    }
     const observerRunId = bodyString(body, "observer_run_id", "observerRunId");
     const targetSpanId = bodyString(body, "target_span_id", "targetSpanId");
-    const targetSubagentSpanId = bodyString(body, "target_subagent_span_id", "targetSubagentSpanId");
+    let targetSubagentSpanId = bodyString(body, "target_subagent_span_id", "targetSubagentSpanId");
+    if (observedConvoId && (!observedRunId || (!targetSpanId && !targetSubagentSpanId))) {
+      const taskSpan = findTaskSpanBySessionId(observedConvoId);
+      if (taskSpan) {
+        observedRunId ??= taskSpan.run_id;
+        if (!targetSpanId && !targetSubagentSpanId) {
+          targetSubagentSpanId = taskSpan.id;
+        }
+      }
+    }
     const beforePrompt = bodyString(body, "before_prompt", "beforePrompt");
     const afterPrompt = bodyString(body, "after_prompt", "afterPrompt");
     const action = bodyString(body, "action") as SteeringAction | undefined;
