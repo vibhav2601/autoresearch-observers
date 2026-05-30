@@ -54,6 +54,7 @@ ends with an `Open in Workshop` deep link to the run.
 | [`pi-agent-chat`](./pi-agent-chat) | `@raindrop-ai/pi-agent` instrumenting `@mariozechner/pi-agent-core` | bun | 3020 |
 | [`opencode-plugin-chat`](./opencode-plugin-chat) | The real OpenCode CLI loading `@raindrop-ai/opencode-plugin` | bun | 3021 |
 | [`opencode-observer-agent`](./opencode-observer-agent) | A second OpenCode process acting as an LLM-as-judge observer that reads Workshop SQLite traces and posts steering nudges | bun | 3031 |
+| [`opencode-steering-actuator`](./opencode-steering-actuator) | REST bridge that applies observer nudges/stops to `opencode serve` and writes applied/failed steering events back to Workshop | bun | 3032 |
 
 Each row links to a per-example README with provider keys, what the demo
 exercises, and what to look for in the Workshop UI.

@@ -5,22 +5,29 @@
 > (sensor / controller / actuator / plant) and its **locked decisions**. This is the spec for the
 > **actuator**: how an observer decision ("emit nudge N") is physically applied to a running
 > worker. Scope is the two actuator modes we committed to: **auto guardrail** + **injected
-> guidance**. Status **2026-05-30**: design; trace path (L0 sensor half) merged in PR #1, no
-> actuator code yet.
+> guidance**. Status **2026-05-30**: implemented prototype for external injected guidance in
+> `raindrop-workshop/examples/opencode-steering-actuator/`; plugin guardrails remain design work.
 
 ---
 
 ## ⚠️ Read this first — reconcile with the locked architecture
 
-This work started under the framing *"add tools to nudge/steer a **subagent** in OpenCode."* That
-framing is **superseded** by two locked decisions in `PROJECT_OVERVIEW.md`. Do not implement the
-naive "hook the subagent tree" version. Concretely:
+This work started under the framing *"add tools to nudge/steer a **subagent** in OpenCode."* The
+preferred architecture in `PROJECT_OVERVIEW.md` is flat top-level worker sessions. The current
+Raindrop/OpenCode test harness can also produce nested `task` child sessions, so the actuator
+supports both forms:
 
-1. **No nested subagents.** Workers are **flat, top-level sessions** spawned by the external
+- flat worker session: pass `sessionId: "ses_..."`;
+- nested task span: pass `targetSubagentSpanId: "<RAINDROP_TASK_SPAN_ID>"`; the actuator extracts
+  the child `<task id="ses_...">` from the task span output and targets that OpenCode session.
+
+Concretely:
+
+1. **Prefer no nested subagents.** Workers are **flat, top-level sessions** spawned by the external
    orchestrator (PROJECT_OVERVIEW → *Fan-out model*). Consequence: there is **nothing to
    "detect"** — a worker *is* a session, identified directly by its `sessionID`, which the
-   orchestrator already holds. The OpenCode SDK's `Session.parentID` exists but is **unused** here
-   (it only matters for the nested path we deliberately avoid).
+   orchestrator already holds. The OpenCode SDK's `Session.parentID` exists; in the nested
+   compatibility path it links a `task` child session to the parent coordinator.
 
 2. **The actuator is primarily EXTERNAL (REST/SSE), not in-process plugin hooks.** The observer is
    a separate process. Its committed control surface:

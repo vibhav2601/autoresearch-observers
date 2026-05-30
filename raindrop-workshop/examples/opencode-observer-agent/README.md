@@ -33,8 +33,8 @@ The observer prompt gives OpenCode explicit SQLite instructions for:
 - reading spans for the target run,
 - identifying `task` subagent spans,
 - detecting repeated empty searches and failed reads,
-- posting only corrective `nudge`, `system_prompt_update`, `stop`, or
-  `restart` steering events to `POST /api/steering/events`.
+- calling the steering actuator at `OPENCODE_CONTROL_URL` for corrective
+  `nudge`, `system_prompt_update`, `stop`, or `restart` decisions.
 
 Observer traces are linked to the run they inspect but are hidden from the main
 Runs list. In Workshop:
@@ -43,6 +43,15 @@ Runs list. In Workshop:
 - **Observer Debug** shows compact observer inputs, outputs, and tool calls for
   quiet and corrective passes.
 
-The control action can be mock-applied in Workshop. A real OpenCode control
-bridge can run on a separate localhost port and receive the same steering
-decision before it is written back to Workshop.
+Run the actuator on `localhost:3032` to apply real steering to an
+`opencode serve` process:
+
+```bash
+cd ../opencode-steering-actuator
+bun install
+PORT=3032 OPENCODE_BASE_URL=http://localhost:4096 bun run dev
+```
+
+When the actuator returns `ok=true`, it writes an `applied` steering event back
+to Workshop. If the actuator is unavailable, the observer falls back to a
+mock/failed Workshop event so the UI still shows the attempted decision.

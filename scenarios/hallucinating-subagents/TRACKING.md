@@ -19,7 +19,7 @@ curl -sS http://localhost:3031/health
 The health payload should show:
 
 - `ok: true`
-- `model: openai/gpt-5.5-pro`
+- `model: openai/gpt-4o-mini` or another fast observer model
 - an `observedRuns` entry for the latest `opencode_session`
 - `passCount` increasing when new trace activity appears
 

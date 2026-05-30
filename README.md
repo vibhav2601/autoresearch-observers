@@ -44,6 +44,9 @@ The nudge/control bridge can be mocked initially. The UI should still surface:
 - compact observer inputs, outputs, and tool calls,
 - no observer runs in the primary Runs list.
 
+The proposed real actuator design is documented in
+[`docs/observer-nudger-architecture.md`](./docs/observer-nudger-architecture.md).
+
 ## Modified Raindrop Workshop
 
 [`raindrop-workshop/`](./raindrop-workshop/) vendors the Workshop source with
@@ -52,6 +55,9 @@ the observer implementation applied. It includes:
 - a `steering_events` SQLite table and API,
 - an OpenCode observer example at
   [`raindrop-workshop/examples/opencode-observer-agent/`](./raindrop-workshop/examples/opencode-observer-agent/),
+- an OpenCode steering actuator at
+  [`raindrop-workshop/examples/opencode-steering-actuator/`](./raindrop-workshop/examples/opencode-steering-actuator/)
+  that calls `opencode serve` control endpoints,
 - hidden observer runs in the main run list,
 - Observer and Observer Debug tabs in the run UI,
 - compact debug rendering for observer inputs, outputs, and tool calls.
@@ -72,6 +78,33 @@ cd raindrop-workshop/examples/opencode-observer-agent
 bun install
 PORT=3031 RAINDROP_WORKSHOP_URL=http://localhost:5899 bun run dev
 ```
+
+In a third terminal, run the actuator against an `opencode serve` process:
+
+```bash
+cd raindrop-workshop/examples/opencode-steering-actuator
+bun install
+PORT=3032 \
+  RAINDROP_WORKSHOP_URL=http://localhost:5899 \
+  OPENCODE_BASE_URL=http://localhost:4096 \
+  bun run dev
+```
+
+The observer writes corrective decisions to the actuator first. The actuator
+then injects nudges through `POST /session/:id/prompt_async`, stops sessions
+through `POST /session/:id/abort`, and writes `applied` or `failed` steering
+events back into Workshop.
+
+For live subagent injection, run OpenCode through a controllable server:
+
+```bash
+/Users/vibhavagrawal/.opencode/bin/opencode serve --port 4096 --hostname 127.0.0.1
+/Users/vibhavagrawal/.opencode/bin/opencode run --attach http://localhost:4096 ...
+```
+
+The actuator can target either a known OpenCode `sessionId` or a Raindrop
+`task` span id. For a `task` span, it extracts the child `<task id="ses_...">`
+from the span output and injects into that subagent session.
 
 ## Hallucinating subagents test
 

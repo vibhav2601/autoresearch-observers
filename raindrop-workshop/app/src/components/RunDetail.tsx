@@ -1040,6 +1040,19 @@ function eventActionLabel(action: SteeringEvent["action"]): string {
   }
 }
 
+function correctionWrongDirection(event: SteeringEvent): string {
+  return event.reason ?? event.message ?? "Observer detected wrong-direction work.";
+}
+
+function correctionRightDirection(event: SteeringEvent): string {
+  return event.after_prompt ?? event.message ?? "Observer issued a corrective action.";
+}
+
+function numberedActionLabel(event: SteeringEvent, nudgeNumber?: number): string {
+  if (event.action === "nudge" && nudgeNumber) return `Nudge ${nudgeNumber}`;
+  return eventActionLabel(event.action);
+}
+
 function formatUnknown(value: unknown): string {
   if (value == null) return "";
   if (typeof value === "string") return tryJson(value) ?? value;
@@ -1186,6 +1199,42 @@ function ObserverCompactSpan({ span }: { span: Span }) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function ObserverCorrectionCard({
+  event,
+  targetLabel,
+  nudgeNumber,
+}: {
+  event: SteeringEvent;
+  targetLabel?: string | null;
+  nudgeNumber?: number;
+}) {
+  return (
+    <div className="rounded-lg p-3" style={{ background: "rgba(102,170,187,0.06)", border: "1px solid rgba(102,170,187,0.22)" }}>
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: C.green }}>{numberedActionLabel(event, nudgeNumber)}</span>
+        <span className="text-[10px] font-mono" style={{ color: C.fg0 }}>{event.status.replace(/_/g, " ")}</span>
+        {event.confidence !== null && <span className="text-[10px] font-mono" style={{ color: C.fg0 }}>{Math.round(event.confidence * 100)}%</span>}
+        {targetLabel && <span className="text-[10px] font-mono truncate" style={{ color: C.fg0 }}>target: {targetLabel}</span>}
+        <span className="ml-auto text-[10px] font-mono" style={{ color: C.fg0 }}>{new Date(event.created_at).toLocaleTimeString()}</span>
+      </div>
+      <div className="grid gap-2 md:grid-cols-[1fr_auto_1fr] md:items-stretch">
+        <div className="rounded-md p-2.5" style={{ background: "rgba(204,102,102,0.07)", border: "1px solid rgba(204,102,102,0.16)" }}>
+          <div className="text-[9px] uppercase tracking-wide mb-1" style={{ color: C.red }}>Wrong direction</div>
+          <div className="text-[11px] leading-relaxed whitespace-pre-wrap" style={{ color: C.fg2 }}>{correctionWrongDirection(event)}</div>
+        </div>
+        <div className="hidden md:grid place-items-center text-[11px] font-mono" style={{ color: C.green }}>-&gt;</div>
+        <div className="rounded-md p-2.5" style={{ background: "rgba(102,170,187,0.09)", border: "1px solid rgba(102,170,187,0.18)" }}>
+          <div className="text-[9px] uppercase tracking-wide mb-1" style={{ color: C.green }}>Corrected direction</div>
+          <div className="text-[11px] leading-relaxed whitespace-pre-wrap" style={{ color: C.fg3 }}>{correctionRightDirection(event)}</div>
+        </div>
+      </div>
+      {event.message && event.message !== event.reason && event.message !== event.after_prompt && (
+        <div className="mt-2 text-[11px] leading-relaxed" style={{ color: C.fg1 }}>{event.message}</div>
+      )}
     </div>
   );
 }
@@ -1348,6 +1397,30 @@ function ObserverPanel({
   }, [steering.events]);
 
   const runLevelEvents = eventsBySubagent.get("__run__") ?? [];
+  const nudgeNumberById = useMemo(() => {
+    const map = new Map<string, number>();
+    let nudgeCount = 0;
+    for (const event of steering.events) {
+      if (event.action === "nudge") map.set(event.id, ++nudgeCount);
+    }
+    return map;
+  }, [steering.events]);
+  const eventsByObserverRun = useMemo(() => {
+    const map = new Map<string, SteeringEvent[]>();
+    for (const event of steering.events) {
+      if (!event.observer_run_id) continue;
+      map.set(event.observer_run_id, [...(map.get(event.observer_run_id) ?? []), event]);
+    }
+    return map;
+  }, [steering.events]);
+  const targetLabel = useCallback((event: SteeringEvent): string | null => {
+    const id = event.target_subagent_span_id ?? event.target_span_id;
+    if (!id) return "run";
+    const span = spansById.get(id);
+    const input = parseToolInput(span?.input_payload);
+    const description = typeof input?.description === "string" ? input.description : null;
+    return `${description ?? span?.name ?? "span"} · ${id.slice(0, 8)}`;
+  }, [spansById]);
   const observerRuns = steering.observerRuns.length > 0
     ? steering.observerRuns
     : steering.observerRunIds.map((id) => ({ id, name: null, event_name: "observer_agent_session" }) as Run);
@@ -1385,7 +1458,9 @@ function ObserverPanel({
                   onClick={() => navigate(routeBase ? tracePath(routeBase, observerRun.id) : runPath(observerRun.id))}
                   title={observerRun.id}
                 >
-                  {observerRun.event_name ?? observerRun.name ?? "observer"} · {observerRun.id.slice(0, 8)}
+                  {(eventsByObserverRun.get(observerRun.id) ?? [])[0]
+                    ? numberedActionLabel((eventsByObserverRun.get(observerRun.id) ?? [])[0], nudgeNumberById.get((eventsByObserverRun.get(observerRun.id) ?? [])[0].id))
+                    : "observer"} · {observerRun.id.slice(0, 8)}
                 </button>
               ))}
             </div>
@@ -1405,9 +1480,22 @@ function ObserverPanel({
 
         {observerRunsWithEvents.length > 0 && (
           <div className="space-y-3">
-            {observerRunsWithEvents.map((observerRun) => (
-              <ObserverTraceCard key={observerRun.id} observerRun={observerRun} prominent />
-            ))}
+            {observerRunsWithEvents.map((observerRun) => {
+              const events = eventsByObserverRun.get(observerRun.id) ?? [];
+              return (
+                <div key={observerRun.id} className="space-y-2">
+                  {events.map((event) => (
+                    <ObserverCorrectionCard
+                      key={event.id}
+                      event={event}
+                      targetLabel={targetLabel(event)}
+                      nudgeNumber={nudgeNumberById.get(event.id)}
+                    />
+                  ))}
+                  <ObserverTraceCard observerRun={observerRun} prominent />
+                </div>
+              );
+            })}
           </div>
         )}
 
@@ -1462,32 +1550,12 @@ function ObserverPanel({
                 {events.length === 0 ? (
                   null
                 ) : events.map((event) => (
-                  <div key={event.id} className="rounded-md p-3" style={{ background: "rgba(102,170,187,0.055)", border: "1px solid rgba(102,170,187,0.18)" }}>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: C.green }}>{eventActionLabel(event.action)}</span>
-                      <span className="text-[10px] font-mono" style={{ color: C.fg0 }}>{event.status.replace(/_/g, " ")}</span>
-                      {event.confidence !== null && <span className="text-[10px] font-mono" style={{ color: C.fg0 }}>{Math.round(event.confidence * 100)}%</span>}
-                      <span className="ml-auto text-[10px] font-mono" style={{ color: C.fg0 }}>{new Date(event.created_at).toLocaleTimeString()}</span>
-                    </div>
-                    {event.message && <div className="text-[12px] leading-relaxed" style={{ color: C.fg3 }}>{event.message}</div>}
-                    {event.reason && <div className="mt-1 text-[11px] leading-relaxed" style={{ color: C.fg1 }}>{event.reason}</div>}
-                    {(event.before_prompt || event.after_prompt) && (
-                      <div className="mt-3 grid gap-2 md:grid-cols-2">
-                        {event.before_prompt && (
-                          <div>
-                            <div className="text-[9px] uppercase tracking-wide mb-1" style={{ color: C.fg0 }}>Before</div>
-                            <pre className="text-[10px] whitespace-pre-wrap rounded p-2" style={{ color: C.fg1, background: "rgba(0,0,0,0.24)" }}>{event.before_prompt}</pre>
-                          </div>
-                        )}
-                        {event.after_prompt && (
-                          <div>
-                            <div className="text-[9px] uppercase tracking-wide mb-1" style={{ color: C.fg0 }}>After</div>
-                            <pre className="text-[10px] whitespace-pre-wrap rounded p-2" style={{ color: C.fg3, background: "rgba(0,0,0,0.24)" }}>{event.after_prompt}</pre>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                  <ObserverCorrectionCard
+                    key={event.id}
+                    event={event}
+                    targetLabel={targetLabel(event)}
+                    nudgeNumber={nudgeNumberById.get(event.id)}
+                  />
                 ))}
               </div>
             </div>
@@ -1499,10 +1567,12 @@ function ObserverPanel({
             <div className="text-[10px] uppercase tracking-wide mb-3" style={{ color: C.fg0 }}>Run-level observer actions</div>
             <div className="space-y-2">
               {runLevelEvents.map((event) => (
-                <div key={event.id} className="text-[12px] leading-relaxed" style={{ color: C.fg2 }}>
-                  <span style={{ color: C.green }}>{eventActionLabel(event.action)}</span>
-                  {event.message ? `: ${event.message}` : null}
-                </div>
+                <ObserverCorrectionCard
+                  key={event.id}
+                  event={event}
+                  targetLabel={targetLabel(event)}
+                  nudgeNumber={nudgeNumberById.get(event.id)}
+                />
               ))}
             </div>
           </div>
@@ -1886,7 +1956,7 @@ export function RunDetail({ runId, routeBase, initialData, isReplay, source, onF
         </div>
         {agentTab === "tree" ? (
           <div className="flex-1 relative min-h-0 overflow-auto sb" style={{ padding: 16 }}>
-            <SpanTree spans={agentSpans} />
+            <SpanTree spans={agentSpans} steeringEvents={steering.events} />
           </div>
         ) : (
           <StickToBottom className="flex-1 relative min-h-0" resize="smooth" initial={false} contextRef={stickToBottomContextRef}>
@@ -1981,6 +2051,7 @@ export function RunDetail({ runId, routeBase, initialData, isReplay, source, onF
             onClearFresh={annotationsApi.clearFresh}
             onCreateAnnotation={createAnnotationAndSave}
             onDeleteAnnotation={annotationsApi.remove}
+            steeringEvents={steering.events}
           />
         </div>
       ) : (

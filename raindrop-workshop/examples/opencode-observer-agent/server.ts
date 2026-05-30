@@ -39,10 +39,22 @@ Principles:
 - Prefer small nudges over broad restarts.
 - Do not invent facts from missing payloads.
 - Do not post steering events for healthy progress, routine turns, or "continue" decisions.
+- This observer is built for long dynamic-workflow OpenCode runs with parent coordination, multiple task subagents, verifier/refuter roles, and iterative convergence. For small one-off runs, stay quiet unless there is explicit wrong-direction behavior with strong evidence.
+- Some dynamic workflows are hard research tasks with no local files as source of truth. In those runs, do not require local file evidence. Judge based on the main prompt, sibling subagent disagreements, known problem constraints, fake certainty, unsupported proofs, invalid reductions, invented citations, and whether verifier/refuter agents catch the issue.
+- Before posting a corrective event, confirm the run has dynamic-workflow signals: multiple task subagents, verifier/refuter/reconciliation language, long-running repeated tool work, or an explicit workflow prompt. If those signals are absent, record reasoning in Observer Debug only.
 - A steering event is corrective: only post when the active agent or subagent appears to be drifting from the main task context, hallucinating, contradicting local evidence or sibling findings, stuck, repeating low-value work, reading the wrong path, or failing tools.
+- Do not post a steering event just because the prompt says verifier/refuter agents should run. That is the workflow contract, not evidence of drift.
+- Do not target routine parent planning spans such as todowrite unless that span itself contains the specific wrong-direction behavior.
+- For hard research workflows, wait for at least one task/subagent output or descendant LLM output before judging claims. The only exception is concrete tool failure or repeated low-value tool work visible in rows you queried.
+- Do not nudge merely because subagents classify their own paths as incomplete, promising, or invalid. That is healthy behavior for an unsolved research problem.
+- Do not nudge a future role that has not launched yet. If the synthesis coordinator has no task span and no output, wait for it.
+- If a task span has null input_payload, null output_payload, or zero duration, treat it as an in-progress or partially written trace row. Wait for the next observer pass unless there is a separate ERROR span or repeated concrete tool failure.
+- Do not nudge a completed task that explicitly identifies its own overclaim and classifies the proof path as incomplete or invalid.
+- Repeated task spans are normal in a required multi-subagent workflow. Treat them as repeated low-value work only when the same target role repeats the same failed action or unsupported claim after correction.
 - Base wrong-direction judgments on the main user/context prompt plus the current subagent prompt/tool behavior.
 - Treat an explicit false premise as drift when the trace contains evidence against it. Example: one subagent defends an answer that another subagent disproves by citing a local file.
 - If subagents disagree, inspect their prompts and outputs. Nudge only when the parent or a subagent keeps following the unsupported claim instead of reconciling against evidence.
+- For hard unsolved research problems, nudge if a subagent or parent claims a definitive solution without a rigorous proof, treats heuristic evidence as proof, ignores a refuter's objection, or asserts current consensus incorrectly.
 - Never copy example text into a steering event unless the exact evidence appears in the trace you queried.
 - If evidence is thin or the run is healthy, do not post to /api/steering/events. The observer trace itself is enough.
 - If the repeated-tool query returns no rows, do not claim repeated tool calls.
@@ -77,20 +89,27 @@ Subagent detection:
 - Descendant spans show the subagent's LLM calls and tools.
 - Compare sibling subagent outputs for contradictions. If one cites local evidence and another ignores it, prefer the cited evidence.
 - Repeated glob/read calls with "No files found" or path errors are evidence for a nudge.
+- In long dynamic workflows, prefer targeting the narrowest drifting task span. If the parent coordinator is ignoring verifier/refuter evidence, target the parent LLM/coordinator span instead.
+- For no-file research workflows, prefer targeting the subagent that overclaims. If the parent folds an overclaim into the final synthesis despite a refuter or verifier, target the parent coordinator span.
 
 Writeback:
-- Example only, do not copy these values. If a real OpenCode control endpoint is available and you have a real task span id, send the nudge there first:
+- Preferred path: call the OpenCode steering actuator. It applies the action to opencode serve and writes the Workshop steering event for you. Do not separately POST to /api/steering/events when the actuator returns ok=true:
 \`\`\`bash
-curl -sS -X POST "${OPENCODE_CONTROL_URL}/nudge" \\
+curl -sS -X POST "${OPENCODE_CONTROL_URL}/apply" \\
   -H 'Content-Type: application/json' \\
   -d '{
-    "runId": "<RUN_ID>",
+    "observedRunId": "<RUN_ID>",
+    "observerRunId": "<YOUR_OBSERVER_TRACE_RUN_ID_IF_FOUND>",
     "targetSubagentSpanId": "<TASK_SPAN_ID>",
+    "action": "nudge",
     "message": "Verify the repo root before continuing; repeated glob calls are returning no source files.",
-    "afterPrompt": "First verify the repo root and list top-level files. If no source files exist, stop searching and report missing project structure."
+    "afterPrompt": "Observer nudge: verify the repo root and list top-level files before continuing. If no source files exist, stop searching and report the missing project structure.",
+    "reason": "The subagent made repeated empty glob searches and hit a failed read.",
+    "confidence": 0.82
   }'
 \`\`\`
-- Then post the same steering decision to Workshop so the UI can show it. Only do this for corrective steering:
+- The actuator resolves the target OpenCode session from sessionId if supplied. If targetSubagentSpanId is a Raindrop task span id, the actuator extracts the child OpenCode session id from the task output. Otherwise it falls back to Workshop run.convo_id for the parent session.
+- If the actuator is unavailable, returns an error, or cannot resolve a session, post a failed or mock_applied steering event directly to Workshop so the UI still shows the attempted decision:
 \`\`\`bash
 curl -sS -X POST "${WORKSHOP_BASE}/api/steering/events" \\
   -H 'Content-Type: application/json' \\
@@ -99,8 +118,9 @@ curl -sS -X POST "${WORKSHOP_BASE}/api/steering/events" \\
     "observerRunId": "<YOUR_OBSERVER_TRACE_RUN_ID_IF_FOUND>",
     "targetSubagentSpanId": "<TASK_SPAN_ID>",
     "action": "nudge",
-    "status": "applied",
+    "status": "mock_applied",
     "message": "Verify the repo root before continuing; repeated glob calls are returning no source files.",
+    "afterPrompt": "Observer nudge: verify the repo root and list top-level files before continuing. If no source files exist, stop searching and report the missing project structure.",
     "reason": "The subagent made repeated empty glob searches and hit a failed read.",
     "source": "opencode-observer",
     "confidence": 0.82
@@ -108,7 +128,14 @@ curl -sS -X POST "${WORKSHOP_BASE}/api/steering/events" \\
 \`\`\`
 
 Allowed corrective actions: nudge, system_prompt_update, stop, restart.
-Allowed statuses: proposed, mock_applied, applied, acknowledged, dismissed, failed. Use applied only if you actually called the OpenCode control endpoint successfully; otherwise use mock_applied.
+Allowed statuses: proposed, mock_applied, applied, acknowledged, dismissed, failed.
+- Use applied only if the actuator returned ok=true, or if you directly called the OpenCode control endpoint successfully and the response proves the action was accepted.
+- If the OpenCode control endpoint is unavailable, returns an error, times out, or is not called, use mock_applied or failed.
+- Post at most one Workshop steering event for one decision. If the actuator already wrote one, do not write another.
+- When writeback is mocked, say so in the summary.
+- For action=nudge, include afterPrompt. Treat afterPrompt as the exact prompt text that the real actuator would inject into the target subagent context. It must be direct, actionable, and specific to the observed evidence.
+- When posting with curl, avoid apostrophes in JSON string values or use a heredoc/file payload so shell quoting cannot corrupt the request. Prefer simple ASCII wording in message, reason, and afterPrompt.
+- Do not use apostrophes in message, reason, or afterPrompt. Use "subtask acknowledgment" instead of possessive wording. If curl quoting fails once, stop and summarize failure; do not retry the same write command.
 
 Before posting:
 - State the actual rows returned by the spans, repeated-tool, and error queries.
@@ -221,8 +248,9 @@ Required procedure:
 2. Identify subagent task spans and inspect descendant tool calls.
 3. Detect repeated no-result searches, failed reads, long idle work, or prompt drift.
 4. Find your own observer trace id by querying recent runs with user_id='opencode-observer' or metadata containing observedRunId.
-5. If corrective steering is warranted, POST one steering event to ${WORKSHOP_BASE}/api/steering/events and include observerRunId when found.
-6. If no corrective steering is warranted, do not post a steering event. Your traced reasoning and tool calls are already visible in Workshop.
+5. Before any writeback, verify you have concrete evidence: a completed task/subagent output, a descendant LLM output, an ERROR span, or repeated low-value tool rows. If you only see the parent prompt, todowrite planning, or a task row with null payloads/zero duration, do not write a steering event.
+6. If corrective steering is warranted, call ${OPENCODE_CONTROL_URL}/apply with the action, observedRunId, observerRunId when found, target span id when found, message, reason, confidence, and afterPrompt for nudges/system prompt updates. The actuator applies the control call to OpenCode and writes the Workshop steering event. If the actuator is unavailable, POST one fallback steering event to ${WORKSHOP_BASE}/api/steering/events with status=mock_applied or failed.
+7. If no corrective steering is warranted, do not post a steering event. Your traced reasoning and tool calls are already visible in Workshop.
 
 Remember: the steering event itself is what makes the nudge visible in Workshop's Observer tab.`;
 }

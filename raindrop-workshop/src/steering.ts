@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto";
-import { asc, desc, eq, or } from "drizzle-orm";
+import { and, asc, desc, eq, or } from "drizzle-orm";
 import { getDrizzleDb } from "./db";
-import { steering_events } from "./db/schema";
+import { spans, steering_events } from "./db/schema";
 
 export type SteeringAction = "nudge" | "system_prompt_update" | "stop" | "restart" | "continue" | "note";
 export type SteeringStatus = "proposed" | "mock_applied" | "applied" | "acknowledged" | "dismissed" | "failed";
@@ -81,6 +81,46 @@ function normalizedConfidence(value: number | null | undefined): number | null {
   return Math.max(0, Math.min(1, value));
 }
 
+function validateObserverMockNudge(input: {
+  observedRunId: string;
+  targetSubagentSpanId: string | null;
+  message: string | null;
+  reason: string | null;
+  afterPrompt: string | null;
+}): void {
+  if (!input.targetSubagentSpanId) {
+    throw new InvalidSteeringEventError("opencode-observer mock nudges must target a task span");
+  }
+
+  const db = getDrizzleDb();
+  const target = db
+    .select()
+    .from(spans)
+    .where(and(eq(spans.run_id, input.observedRunId), eq(spans.id, input.targetSubagentSpanId)))
+    .get();
+
+  if (!target) throw new InvalidSteeringEventError("target_subagent_span_id was not found in the observed run");
+  if (target.name !== "task" || target.span_type !== "TOOL_CALL") {
+    throw new InvalidSteeringEventError("opencode-observer mock nudges must target a task tool span");
+  }
+  if (!optionalString(target.output_payload)) {
+    throw new InvalidSteeringEventError("opencode-observer mock nudges require completed task output evidence");
+  }
+
+  const evidenceText = [input.message, input.reason, input.afterPrompt].filter(Boolean).join(" ").toLowerCase();
+  const claimsFileFailure = /\b(failed read|empty glob|no files found|repo root|source files)\b/.test(evidenceText);
+  if (!claimsFileFailure) return;
+
+  const errorSpan = db
+    .select({ id: spans.id })
+    .from(spans)
+    .where(and(eq(spans.run_id, input.observedRunId), eq(spans.status, "ERROR")))
+    .get();
+  if (!errorSpan) {
+    throw new InvalidSteeringEventError("file/read failure nudges require an ERROR span in the observed run");
+  }
+}
+
 export function createSteeringEvent(input: CreateSteeringEventInput): SteeringEvent {
   const observedRunId = optionalString(input.observed_run_id);
   if (!observedRunId) throw new InvalidSteeringEventError("observed_run_id is required");
@@ -97,6 +137,19 @@ export function createSteeringEvent(input: CreateSteeringEventInput): SteeringEv
   if (source === "opencode-observer" && (input.action === "continue" || input.action === "note")) {
     throw new InvalidSteeringEventError("opencode-observer steering events must be corrective");
   }
+  const message = optionalString(input.message);
+  const beforePrompt = optionalString(input.before_prompt);
+  const afterPrompt = optionalString(input.after_prompt);
+  const reason = optionalString(input.reason);
+  if (source === "opencode-observer" && input.action === "nudge" && status === "mock_applied") {
+    validateObserverMockNudge({
+      observedRunId,
+      targetSubagentSpanId,
+      message,
+      reason,
+      afterPrompt,
+    });
+  }
 
   const row: SteeringEvent = {
     id: randomUUID(),
@@ -106,10 +159,10 @@ export function createSteeringEvent(input: CreateSteeringEventInput): SteeringEv
     target_subagent_span_id: targetSubagentSpanId,
     action: input.action,
     status,
-    message: optionalString(input.message),
-    before_prompt: optionalString(input.before_prompt),
-    after_prompt: optionalString(input.after_prompt),
-    reason: optionalString(input.reason),
+    message,
+    before_prompt: beforePrompt,
+    after_prompt: afterPrompt,
+    reason,
     source,
     confidence: normalizedConfidence(input.confidence),
     created_at: Date.now(),
