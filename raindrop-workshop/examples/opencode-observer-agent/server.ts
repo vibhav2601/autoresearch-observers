@@ -15,7 +15,7 @@ import type { WorkshopRun, WorkshopRunDetail } from "./types.ts";
 loadWorkspaceEnv(import.meta.url);
 
 const DEFAULT_PORT = Number(process.env.PORT ?? 3031);
-const DEFAULT_MODEL = process.env.OPENCODE_OBSERVER_MODEL ?? "openai/gpt-5.5-pro";
+const DEFAULT_MODEL = process.env.OPENCODE_OBSERVER_MODEL ?? "openai/gpt-4o-mini";
 const WORKSHOP_BASE = process.env.RAINDROP_WORKSHOP_URL ?? "http://localhost:5899";
 const OPENCODE_CONTROL_URL = process.env.OPENCODE_CONTROL_URL ?? "http://localhost:3032";
 const WATCH_EVENT_NAME = process.env.OPENCODE_OBSERVER_WATCH_EVENT ?? "opencode_session";
@@ -98,6 +98,18 @@ function fingerprintFiring(facts: FiringFacts): string {
       const e = facts.evidence as { count: number };
       return `error:${facts.scope}:${e.count}`;
     }
+    case "empty_search": {
+      const e = facts.evidence as { emptyCount: number };
+      return `empty:${facts.scope}:${e.emptyCount}`;
+    }
+    case "wrong_path": {
+      const e = facts.evidence as { failedCount: number };
+      return `wrongpath:${facts.scope}:${e.failedCount}`;
+    }
+    case "prompt_drift": {
+      const e = facts.evidence as { consecutiveLow: number };
+      return `drift:${facts.scope}:${e.consecutiveLow}`;
+    }
   }
 }
 
@@ -179,7 +191,8 @@ function startAutoWatch(serviceStartedAt: number) {
       controlUrl: OPENCODE_CONTROL_URL,
       facts,
     });
-    console.log(`[observer] firing ${facts.pattern} on ${run.id.slice(0, 8)}: ${facts.summary}`);
+    const targetTag = facts.subagentSpanId ? facts.subagentSpanId.slice(0, 8) : "main";
+    console.log(`[observer] firing ${facts.pattern} on ${run.id.slice(0, 8)}/${targetTag} (${facts.subagentLabel}): ${facts.summary}`);
     runObserverOnce(
       run.id,
       prompt,
@@ -188,15 +201,15 @@ function startAutoWatch(serviceStartedAt: number) {
       (chunk) => {
         const text = Buffer.isBuffer(chunk) ? chunk.toString("utf8") : chunk;
         for (const line of text.split("\n")) {
-          if (line.trim()) console.log(`[observer:${run.id.slice(0, 8)}:${facts.pattern}] ${line}`);
+          if (line.trim()) console.log(`[observer:${run.id.slice(0, 8)}/${targetTag}:${facts.pattern}] ${line}`);
         }
       },
     )
       .then((code) => {
-        console.log(`[observer] completed ${facts.pattern} pass on ${run.id.slice(0, 8)} exit=${code}`);
+        console.log(`[observer] completed ${facts.pattern} pass on ${run.id.slice(0, 8)}/${targetTag} exit=${code}`);
       })
       .catch((err) => {
-        console.error(`[observer] failed ${facts.pattern} pass on ${run.id.slice(0, 8)}:`, err);
+        console.error(`[observer] failed ${facts.pattern} pass on ${run.id.slice(0, 8)}/${targetTag}:`, err);
       })
       .finally(() => {
         record.inFlight = false;
