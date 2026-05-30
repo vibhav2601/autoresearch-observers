@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Raindrop Observer Agent Plan</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #080a0d;
+      --panel: #101419;
+      --panel-2: #151b22;
+      --text: #eef4f8;
+      --muted: #9aa8b2;
+      --faint: #65727d;
+      --line: rgba(255,255,255,.12);
+      --blue: #75a7ff;
+      --cyan: #69d6df;
+      --green: #7de28b;
+      --amber: #f1c66a;
+      --red: #ff817d;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
+    }
+
+    main {
+      width: min(1180px, calc(100vw - 40px));
+      margin: 0 auto;
+      padding: 42px 0 64px;
+    }
+
+    h1, h2, h3, p { margin: 0; }
+
+    h1 {
+      font-size: 34px;
+      line-height: 1.1;
+      letter-spacing: 0;
+      margin-bottom: 12px;
+    }
+
+    h2 {
+      font-size: 18px;
+      margin-bottom: 14px;
+    }
+
+    h3 {
+      font-size: 13px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      margin-bottom: 10px;
+    }
+
+    code, pre {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    }
+
+    .lead {
+      color: var(--muted);
+      font-size: 17px;
+      max-width: 860px;
+    }
+
+    .hero {
+      padding-bottom: 28px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 28px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 18px;
+    }
+
+    .span-4 { grid-column: span 4; }
+    .span-6 { grid-column: span 6; }
+    .span-8 { grid-column: span 8; }
+    .span-12 { grid-column: span 12; }
+
+    .muted { color: var(--muted); }
+    .faint { color: var(--faint); }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .pill {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 5px 9px;
+      color: var(--muted);
+      background: rgba(255,255,255,.04);
+      font-size: 12px;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: 1fr 44px 1fr 44px 1fr;
+      align-items: stretch;
+      gap: 0;
+    }
+
+    .node {
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      min-height: 112px;
+    }
+
+    .arrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--faint);
+      font-size: 22px;
+    }
+
+    .list {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .list li {
+      display: grid;
+      grid-template-columns: 22px 1fr;
+      gap: 8px;
+      color: var(--muted);
+    }
+
+    .num {
+      color: var(--cyan);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .check {
+      color: var(--green);
+      font-weight: 700;
+    }
+
+    .timeline {
+      display: grid;
+      grid-template-columns: 190px 1fr 1fr 1fr;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .timeline > div {
+      padding: 12px;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      min-height: 58px;
+    }
+
+    .timeline > div:nth-child(4n) { border-right: 0; }
+    .timeline > div:nth-last-child(-n+4) { border-bottom: 0; }
+    .timeline .head {
+      background: rgba(255,255,255,.05);
+      color: var(--text);
+      font-weight: 650;
+      min-height: auto;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      height: 20px;
+      padding: 0 7px;
+      border-radius: 999px;
+      font-size: 11px;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      margin-right: 6px;
+      margin-bottom: 6px;
+    }
+
+    .tag.blue { color: var(--blue); border-color: rgba(117,167,255,.45); }
+    .tag.green { color: var(--green); border-color: rgba(125,226,139,.45); }
+    .tag.amber { color: var(--amber); border-color: rgba(241,198,106,.45); }
+    .tag.red { color: var(--red); border-color: rgba(255,129,125,.45); }
+
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      overflow: auto;
+      background: #07090b;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      color: #d9e8ee;
+      font-size: 12px;
+    }
+
+    .section { margin-top: 16px; }
+
+    .status {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    .status-item {
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .status-item strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 13px;
+    }
+
+    @media (max-width: 860px) {
+      main { width: min(100vw - 24px, 1180px); padding-top: 24px; }
+      h1 { font-size: 28px; }
+      .span-4, .span-6, .span-8 { grid-column: span 12; }
+      .flow { grid-template-columns: 1fr; gap: 10px; }
+      .arrow { transform: rotate(90deg); height: 24px; }
+      .timeline { grid-template-columns: 1fr; }
+      .timeline > div { border-right: 0; }
+      .timeline .head { display: none; }
+      .status { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="hero">
+      <h1>Raindrop Live Observer Agent</h1>
+      <p class="lead">
+        Build a live Workshop experience where a separate local OpenCode observer agent is visible in Raindrop,
+        evaluates subagents in real time, emits its own trace, and records nudges or prompt updates back onto the
+        original subagent timeline.
+      </p>
+      <div class="pill-row">
+        <span class="pill">Main agent trace</span>
+        <span class="pill">Subagent timeline</span>
+        <span class="pill">Observer agent trace</span>
+        <span class="pill">Live steering events</span>
+        <span class="pill">Mock or real nudge writeback</span>
+      </div>
+    </section>
+
+    <section class="grid">
+      <article class="card span-4">
+        <h2>The Product Idea</h2>
+        <p class="muted">
+          Raindrop should not only show what the main agent and subagents did. It should also show the
+          observer agent that is watching them, explain what it noticed, and display the steering action it
+          took or proposed.
+        </p>
+      </article>
+
+      <article class="card span-4">
+        <h2>Observer Is First-Class</h2>
+        <p class="muted">
+          The observer agent emits normal Raindrop traces with event name <code>observer_agent_session</code>.
+          Those traces are linked to the observed OpenCode run through metadata like <code>observedRunId</code>.
+        </p>
+      </article>
+
+      <article class="card span-4">
+        <h2>Steering Is Durable</h2>
+        <p class="muted">
+          Nudges, stop/restart recommendations, and prompt updates are stored as <code>steering_events</code>.
+          They appear live in the UI and remain visible when the run is reopened.
+        </p>
+      </article>
+    </section>
+
+    <section class="card span-12 section">
+      <h2>System Flow</h2>
+      <div class="flow">
+        <div class="node">
+          <h3>1. Main OpenCode Agent</h3>
+          <p class="muted">
+            Runs locally and emits the normal Raindrop trace. Subagents appear as task/tool spans with child
+            LLM and tool spans.
+          </p>
+        </div>
+        <div class="arrow">→</div>
+        <div class="node">
+          <h3>2. Workshop</h3>
+          <p class="muted">
+            Stores runs, spans, live events, and steering events in SQLite. Broadcasts updates over the existing
+            WebSocket.
+          </p>
+        </div>
+        <div class="arrow">→</div>
+        <div class="node">
+          <h3>3. Observer OpenCode Agent</h3>
+          <p class="muted">
+            Runs on a different localhost port, reads Workshop SQLite or APIs, emits its own trace, then posts
+            steering actions back to Workshop.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid section">
+      <article class="card span-6">
+        <h2>What The Observer Watches</h2>
+        <ul class="list">
+          <li><span class="check">✓</span><span>Repeated <code>glob</code> calls returning no files.</span></li>
+          <li><span class="check">✓</span><span>Failed <code>read</code> calls, especially wrong paths.</span></li>
+          <li><span class="check">✓</span><span>Subagents running longer than expected.</span></li>
+          <li><span class="check">✓</span><span>Repeated tool usage without new information.</span></li>
+          <li><span class="check">✓</span><span>Subagent output that contradicts trace evidence.</span></li>
+        </ul>
+      </article>
+
+      <article class="card span-6">
+        <h2>What The Observer Writes Back</h2>
+        <ul class="list">
+          <li><span class="num">1</span><span><strong>Nudge:</strong> tell a subagent to change strategy.</span></li>
+          <li><span class="num">2</span><span><strong>Prompt update:</strong> record before/after prompt text.</span></li>
+          <li><span class="num">3</span><span><strong>Stop:</strong> recommend or trigger stopping a subagent.</span></li>
+          <li><span class="num">4</span><span><strong>Restart:</strong> recommend or trigger restart with revised context.</span></li>
+          <li><span class="num">5</span><span><strong>Note:</strong> explain a finding without steering.</span></li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="card section">
+      <h2>What The UI Should Show</h2>
+      <div class="timeline">
+        <div class="head">Time</div>
+        <div class="head">Main Agent</div>
+        <div class="head">Subagents</div>
+        <div class="head">Observer / Steering</div>
+
+        <div class="faint">11:31:53</div>
+        <div>User asks OpenCode to run two subagents.</div>
+        <div>Subagent 1 and Subagent 2 start.</div>
+        <div class="muted">Observer starts watching the active run.</div>
+
+        <div class="faint">11:32:04</div>
+        <div class="muted">Main agent waits for task results.</div>
+        <div>Subagents run repeated <code>glob</code> searches.</div>
+        <div><span class="tag blue">observer trace</span> Evaluates empty search results.</div>
+
+        <div class="faint">11:32:23</div>
+        <div class="muted">Main agent still waiting.</div>
+        <div>Subagent attempts a failed <code>read</code>.</div>
+        <div><span class="tag amber">nudge</span> Verify repo root before continuing.</div>
+
+        <div class="faint">11:32:25</div>
+        <div class="muted">Main agent receives task output.</div>
+        <div>Subagent result says no observer files exist.</div>
+        <div><span class="tag green">prompt update</span> Shows before/after instruction.</div>
+      </div>
+    </section>
+
+    <section class="grid section">
+      <article class="card span-6">
+        <h2>Backend Build Plan</h2>
+        <ul class="list">
+          <li><span class="num">1</span><span>Add <code>steering_events</code> table and migration.</span></li>
+          <li><span class="num">2</span><span>Add create/list/update helpers in the Workshop DB layer.</span></li>
+          <li><span class="num">3</span><span>Add <code>POST /api/steering/events</code> for the observer agent.</span></li>
+          <li><span class="num">4</span><span>Add <code>GET /api/runs/:id/steering</code> for the UI.</span></li>
+          <li><span class="num">5</span><span>Broadcast <code>steering</code> events over the existing WebSocket.</span></li>
+          <li><span class="num">6</span><span>Find observer runs by metadata containing <code>observedRunId</code>.</span></li>
+        </ul>
+      </article>
+
+      <article class="card span-6">
+        <h2>Frontend Build Plan</h2>
+        <ul class="list">
+          <li><span class="num">1</span><span>Add an <strong>Observer</strong> tab or lane in run detail.</span></li>
+          <li><span class="num">2</span><span>Show linked observer traces with status and timestamps.</span></li>
+          <li><span class="num">3</span><span>Group steering events by target subagent.</span></li>
+          <li><span class="num">4</span><span>Show nudges inline on subagent cards and timeline rows.</span></li>
+          <li><span class="num">5</span><span>Render prompt revisions with previous and next prompt text.</span></li>
+          <li><span class="num">6</span><span>Live-update the panel when steering events arrive.</span></li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="card section">
+      <h2>Steering Event Shape</h2>
+      <pre><code>{
+  "observedRunId": "main-opencode-run-id",
+  "observerRunId": "observer-agent-run-id",
+  "targetSubagentSpanId": "subagent-task-span-id",
+  "targetSpanId": "failed-read-or-repeated-glob-span-id",
+  "action": "nudge",
+  "status": "applied",
+  "message": "Verify the repo root before continuing; repeated glob calls are returning no files.",
+  "beforePrompt": "Run tests for observer agents and evaluate their efficiency.",
+  "afterPrompt": "First verify the repo root and list top-level files. If no source files exist, stop searching and report missing project structure.",
+  "reason": "The subagent made multiple empty glob searches and attempted to read a bad path.",
+  "source": "opencode-observer",
+  "confidence": 0.82
+}</code></pre>
+    </section>
+
+    <section class="card section">
+      <h2>Observer Trace Metadata</h2>
+      <p class="muted" style="margin-bottom: 12px;">
+        The observer agent should emit a normal Raindrop trace so its own reasoning is visible in Workshop.
+      </p>
+      <pre><code>{
+  "event": "observer_agent_session",
+  "input": {
+    "observedRunId": "main-opencode-run-id",
+    "snapshot": "subagent summary and recent tool failures"
+  },
+  "properties": {
+    "role": "observer",
+    "observedRunId": "main-opencode-run-id",
+    "observedEventName": "opencode_session"
+  },
+  "output": {
+    "decision": "nudge",
+    "targetSubagentSpanId": "subagent-task-span-id",
+    "proposedPrompt": "First verify the repo root...",
+    "reason": "Repeated empty glob calls plus failed read."
+  }
+}</code></pre>
+    </section>
+
+    <section class="grid section">
+      <article class="card span-8">
+        <h2>First Demo Slice</h2>
+        <ul class="list">
+          <li><span class="num">1</span><span>Run the main OpenCode agent and spawn subagents.</span></li>
+          <li><span class="num">2</span><span>Observer process watches the SQLite DB or Workshop APIs.</span></li>
+          <li><span class="num">3</span><span>Observer detects repeated empty glob calls or failed reads.</span></li>
+          <li><span class="num">4</span><span>Observer emits a Raindrop trace linked to the main run.</span></li>
+          <li><span class="num">5</span><span>Observer posts a steering event to Workshop.</span></li>
+          <li><span class="num">6</span><span>Workshop UI shows the observer trace and the nudge attached to the subagent.</span></li>
+        </ul>
+      </article>
+
+      <article class="card span-4">
+        <h2>Implementation Status</h2>
+        <div class="status">
+          <div class="status-item">
+            <strong>Started</strong>
+            <span class="muted">Schema concept for <code>steering_events</code>.</span>
+          </div>
+          <div class="status-item">
+            <strong>Next</strong>
+            <span class="muted">DB helpers and API routes.</span>
+          </div>
+          <div class="status-item">
+            <strong>Then</strong>
+            <span class="muted">Observer UI lane.</span>
+          </div>
+          <div class="status-item">
+            <strong>Later</strong>
+            <span class="muted">Real OpenCode control bridge.</span>
+          </div>
+        </div>
+      </article>
+    </section>
+  </main>
+</body>
+</html>
