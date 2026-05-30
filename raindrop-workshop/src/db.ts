@@ -691,6 +691,7 @@ export function findTaskSpanBySessionId(sessionId: string): { id: string; run_id
 
 export function clearAll() {
   getDrizzleDb().transaction((tx) => {
+    tx.delete(schema.pending_steering_events).run();
     tx.delete(schema.steering_events).run();
     tx.delete(schema.live_events).run();
     tx.delete(schema.spans).run();

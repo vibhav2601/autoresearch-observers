@@ -166,6 +166,30 @@ export const steering_events = sqliteTable(
   ],
 );
 
+export const pending_steering_events = sqliteTable(
+  "pending_steering_events",
+  {
+    id: text("id").primaryKey(),
+    observed_convo_id: text("observed_convo_id").notNull(),
+    observer_run_id: text("observer_run_id"),
+    target_span_id: text("target_span_id"),
+    target_subagent_span_id: text("target_subagent_span_id"),
+    action: text("action").notNull(),
+    status: text("status").notNull(),
+    message: text("message"),
+    before_prompt: text("before_prompt"),
+    after_prompt: text("after_prompt"),
+    reason: text("reason"),
+    source: text("source").notNull(),
+    confidence: real("confidence"),
+    created_at: integer("created_at").notNull(),
+  },
+  (table) => [
+    index("idx_pending_steering_convo").on(table.observed_convo_id, desc(table.created_at)),
+    index("idx_pending_steering_created").on(table.created_at),
+  ],
+);
+
 export const runs_with_hints = sqliteView("runs_with_hints", {
   id: text("id"),
   event_id: text("event_id"),
