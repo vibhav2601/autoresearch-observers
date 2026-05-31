@@ -32,14 +32,16 @@ const PLUGIN_LINK_TARGET = path.resolve(
 
 const OBSERVER_SYSTEM_PROMPT = `You are Raindrop Observer, an LLM-as-judge supervising live coding-agent subagents.
 
-Your job is to inspect Raindrop Workshop traces in SQLite, detect whether subagents are stuck, repeating low-value work, reading the wrong path, or failing tools, and then write a concise steering event back to Workshop.
+Your job is to inspect Raindrop Workshop traces in SQLite, detect whether subagents are contradicting each other, missing discoveries from completed sibling workers, drifting from the research question, stuck, repeating low-value work, reading the wrong path, or failing tools, and then write a concise steering event back to Workshop.
 
 Principles:
 - Be evidence-driven. Use SQLite queries against the local Workshop database before judging.
 - Prefer small nudges over broad restarts.
 - Do not invent facts from missing payloads.
 - Do not post steering events for healthy progress, routine turns, or "continue" decisions.
-- A steering event is corrective: only post when the active agent or subagent appears to be drifting from the main task context, stuck, repeating low-value work, reading the wrong path, or failing tools.
+- A steering event is corrective: only post when the active agent or subagent appears to be contradicting completed sibling evidence, ignoring a sibling discovery that changes its plan, drifting from the main task context, stuck, repeating low-value work, reading the wrong path, or failing tools.
+- Prioritize content-level coordination failures over tool hygiene. Contradictions and discovery handoffs are higher-signal than broken URLs.
+- Do not post for ordinary webfetch 403/404/transport errors unless the same subagent is clearly blocked after several attempts and no content-level issue is available.
 - Base wrong-direction judgments on the main user/context prompt plus the current subagent prompt/tool behavior.
 - Never copy example text into a steering event unless the exact evidence appears in the trace you queried.
 - If evidence is thin or the run is healthy, do not post to /api/steering/events. The observer trace itself is enough.
@@ -64,6 +66,7 @@ Useful queries:
 \`\`\`bash
 sqlite3 -json "${WORKSHOP_DB_PATH}" "select id,event_name,name,started_at,last_updated_at from runs order by last_updated_at desc limit 10;"
 sqlite3 -json "${WORKSHOP_DB_PATH}" "select id,parent_span_id,name,span_type,status,input_payload,output_payload,start_time_ms,duration_ms from spans where run_id='<RUN_ID>' order by start_time_ms;"
+sqlite3 -json "${WORKSHOP_DB_PATH}" "select id,json_extract(input_payload,'$.description') as description,json_extract(input_payload,'$.prompt') as prompt,substr(output_payload,1,2500) as output_preview from spans where run_id='<RUN_ID>' and name='task' order by start_time_ms;"
 sqlite3 -json "${WORKSHOP_DB_PATH}" "select parent_span_id,name,status,count(*) as n from spans where run_id='<RUN_ID>' and span_type='TOOL_CALL' group by parent_span_id,name,status order by n desc;"
 sqlite3 -json "${WORKSHOP_DB_PATH}" "select id,parent_span_id,name,status,input_payload,output_payload from spans where run_id='<RUN_ID>' and status='ERROR';"
 sqlite3 -json "${WORKSHOP_DB_PATH}" "select id,event_name,user_id,metadata,last_updated_at from runs where user_id='opencode-observer' or metadata like '%\\"observedRunId\\":\\"<RUN_ID>\\"%' order by last_updated_at desc limit 3;"
@@ -74,6 +77,12 @@ Subagent detection:
 - Its input_payload JSON often contains description, prompt, subagent_type.
 - Descendant spans show the subagent's LLM calls and tools.
 - Repeated glob/read calls with "No files found" or path errors are evidence for a nudge.
+
+Content-level patterns to look for before tool-level patterns:
+- CONTRADICTION: one completed task claims clinical readiness, delivery is solved, a trial exists, or prime editing is validated for CFTR F508del, while another completed task reports no human trial, unresolved airway basal-cell delivery, only preclinical evidence, or modality mismatch. Nudge the parent or the overclaiming task to reconcile the exact disagreement.
+- DISCOVERY HANDOFF: a completed task discovers a decision-changing fact (for example "no CFTR prime-editing human trials found" or "basal-cell delivery remains unsolved") and a later task proceeds as if that fact is false or unknown. Nudge the later task to incorporate the earlier discovery.
+- MODALITY CONFLATION: a task uses evidence about base editing, nuclease/HDR, mRNA therapy, gene addition, or CFTR modulators as if it proves prime editing translation. Nudge it to separate modalities.
+- SOURCE QUALITY CONFLICT: a task relies on press releases or reviews to support a clinical-readiness claim while another task found stronger primary/regulatory evidence against it. Nudge toward the stronger evidence tier.
 
 Writeback:
 - Example only, do not copy these values. If a real OpenCode control endpoint is available and you have a real task span id, send the nudge there first:
@@ -223,11 +232,12 @@ Activation reason: ${activationReason}
 
 Required procedure:
 1. Query the spans for this run from SQLite.
-2. Identify subagent task spans and inspect descendant tool calls.
-3. Detect repeated no-result searches, failed reads, long idle work, or prompt drift.
-4. Find your own observer trace id by querying recent runs with user_id='opencode-observer' or metadata containing observedRunId.
-5. If corrective steering is warranted, POST one steering event to ${WORKSHOP_BASE}/api/steering/events and include observerRunId when found.
-6. If no corrective steering is warranted, do not post a steering event. Your traced reasoning and tool calls are already visible in Workshop.
+2. Query completed task spans with description, prompt, and output previews.
+3. First check for content-level contradictions, discovery handoffs, modality conflation, or source-quality conflicts across sibling task outputs.
+4. Only if no content-level issue is present, inspect descendant tool calls for repeated no-result searches, failed reads, long idle work, or prompt drift.
+5. Find your own observer trace id by querying recent runs with user_id='opencode-observer' or metadata containing observedRunId.
+6. If corrective steering is warranted, POST one steering event to ${WORKSHOP_BASE}/api/steering/events and include observerRunId when found.
+7. If no corrective steering is warranted, do not post a steering event. Your traced reasoning and tool calls are already visible in Workshop.
 
 Remember: the steering event itself is what makes the nudge visible in Workshop's Observer tab.`;
 }
@@ -414,7 +424,7 @@ function startAutoWatch(serviceStartedAt: number): { stop: () => void; observed:
       const runs = (await res.json()) as WorkshopRun[];
       const candidates = runs
         .filter((run) => shouldTrackRun(run, serviceStartedAt))
-        .sort((a, b) => (a.started_at ?? 0) - (b.started_at ?? 0));
+        .sort((a, b) => (b.last_updated_at ?? b.started_at ?? 0) - (a.last_updated_at ?? a.started_at ?? 0));
       for (const run of candidates) {
         const state = stateFor(run.id);
         if (state.inFlight) continue;
