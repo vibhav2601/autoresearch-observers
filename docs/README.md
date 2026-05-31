@@ -1,55 +1,53 @@
-# Context & Hand-off Docs — start here
+# Documentation
 
-**New agent session? Read this directory first.** It is the single source of context for
-**autoresearch-observers** — read it before planning or writing any code, then point the next
-session back here.
+Start here if you are picking up the project cold. The root
+[README](../README.md) gives the short story; this directory holds the
+architecture, operating notes, and design contracts an engineer needs before
+changing the system.
 
-## Read in this order
+## Best Reading Order For Engineers
 
-1. **[PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md)** — **the master brief.** The closed-loop
-   observer-over-research-swarm concept; the locked architecture decisions (Opencode-as-server
-   workers, **native subagent-tree fan-out + external observer + gate plugin**, local Raindrop
-   Workshop); the 4-pattern → 4-nudge observer spec
-   (the eval surface); the L0→L3 build plan with the L0 de-risk spike; known risks + mitigations;
-   open decisions; the demo; and prize alignment.
+1. [Project overview](PROJECT_OVERVIEW.md)
+   The concise architecture, implemented pieces, control-loop model, and where
+   to start for each kind of change.
 
-2. **[OpenCode → Raindrop Workshop tracing](../opencode-raindrop-tracing/README.md)** — the
-   already-implemented **L0 trace path**: a one-command `setup.sh` that streams OpenCode sessions
-   into a local Workshop via the official Raindrop plugin. Read when working on tracing or the L0
-   spike. *(Lives next to its `setup.sh` + config by design — it's runnable glue, not just prose,
-   so it stays with the code rather than moving here.)*
+2. [Local setup](LOCAL_SETUP.md)
+   The terminal-by-terminal startup path: Workshop, observer, OpenCode server,
+   steering actuator, and scenario run. Useful for smoke-testing changes.
 
-3. **[STEERING_ACTUATOR.md](STEERING_ACTUATOR.md)** — **the single actuator spec.** How an observer
-   decision becomes a real effect on a running worker, across all three levers: **nudge** (inject,
-   `prompt{noReply}`), **abandon** (`abort`), and **hard veto** (the in-process synchronous gate
-   plugin). Native-subagent-tree topology; cross-worker veto via a synchronous observer round-trip;
-   grounded version-pinned hook/SDK signatures; the self-audit requirement; config; package layout +
-   code sketch; and merged L0 probes. **Read before building any worker-control code.**
+3. [Value proposition](VALUE_PROP.md)
+   The problem framing: why multi-agent research needs runtime steering rather
+   than post-hoc trace inspection.
 
-4. **[Replay Steering & Nudge-Value Eval](REPLAY_STEERING_AND_EVAL.md)** — the **L3** design: how
-   Workshop replays become a counterfactual **preflight** on high-stakes interventions (abandon /
-   major refocus) — distinct from the synchronous gate plugin in #3 — and how pre-nudge "wrong path"
-   replays become a per-intervention **value metric** for the demo. Read when working on replay,
-   high-stakes steering, or the demo scoreboard.
+4. [Steering actuator](STEERING_ACTUATOR.md)
+   The detailed control spec for nudges, abandonment, restarts, and synchronous
+   hard vetoes.
 
-5. **[OBSERVER_HARNESS.md](OBSERVER_HARNESS.md)** — the **context-management plan** for the
-   observer LLM: how the harness keeps the LLM's input small, fresh, and pattern-scoped while the
-   worker swarm firehoses spans. Covers the principle (LLM never sees raw spans), the
-   continuously-running reducers + bounded state model, the two-clock trigger taxonomy
-   (event-driven + clock-driven), the coalescing queue with re-read-at-dequeue, the
-   per-`(scope, pattern)` cooldown matrix with escalation bypass, and a gap analysis vs. the current
-   skeleton. Read before building observer detection, queueing, or prompt-shaping code.
+5. [Observer harness](OBSERVER_HARNESS.md)
+   How the observer keeps trace context bounded and turns a span firehose into
+   focused decisions.
 
-## Current status (2026-05-30)
+6. [Replay steering and eval](REPLAY_STEERING_AND_EVAL.md)
+   Future-facing design for counterfactual replay and per-intervention value
+   measurement.
 
-Design plus working prototypes. The L0 **trace half** is scaffolded (see #2). The interaction layer
-now has an external steering actuator under
-`raindrop-workshop/examples/opencode-steering-actuator/` and a synchronous hard-veto gate plugin
-under `opencode-observer-gate/`. The next gate is local end-to-end validation: confirm both plugins
-load under `opencode serve`, fan out via the native subagent harness, and prove reach (nudge into a
-child) + veto + abandon. Details in [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md) → "L0 spike".
+## Runnable References
 
-## Keeping this useful
+| Area | Link |
+| --- | --- |
+| Main demo scenario | [`../scenarios/hallucinating-subagents/`](../scenarios/hallucinating-subagents/) |
+| OFF vs. ON benchmark | [`../scenarios/bench/`](../scenarios/bench/) |
+| Observer agent | [`../raindrop-workshop/examples/opencode-observer-agent/`](../raindrop-workshop/examples/opencode-observer-agent/) |
+| Steering actuator | [`../raindrop-workshop/examples/opencode-steering-actuator/`](../raindrop-workshop/examples/opencode-steering-actuator/) |
+| Hard-veto plugin | [`../opencode-observer-gate/`](../opencode-observer-gate/) |
+| OpenCode tracing setup | [`../opencode-raindrop-tracing/`](../opencode-raindrop-tracing/) |
 
-When a decision changes or a new context doc is added, update `PROJECT_OVERVIEW.md` and add a line
-here. Keep `docs/` the canonical place an agent looks first.
+## Historical Design Notes
+
+These files are useful if you want the design trail, but they are not required
+for day-one development:
+
+- [Observer nudger architecture](observer-nudger-architecture.md)
+- [OpenCode subagent injection architecture](opencode-subagent-injection-architecture.html)
+- [Complicated workflow prompt](complicated_agent_workflow_hard_problem_prompt.md)
+- [HTML value prop](VALUE_PROP.html)

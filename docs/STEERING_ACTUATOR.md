@@ -1,16 +1,21 @@
-# Worker Steering — the Nudge Actuator (implementation spec)
+# Worker Steering — the Nudge Actuator
 
-> **Hand-off for the agent that builds the actuator.** Read [`PROJECT_OVERVIEW.md`](./PROJECT_OVERVIEW.md)
-> first — this doc assumes its vocabulary (sensor / controller / actuator / plant) and its **locked
-> decisions**. **This is the single spec for the actuator**: how an observer decision ("emit nudge N")
-> becomes a real effect on a running worker. It covers all three levers we committed to — **nudge**
-> (inject), **abandon** (abort), and **hard veto** (the synchronous gate plugin).
-> **Status 2026-05-30:** **native-subagent-tree** topology; trace path (L0 sensor half) merged in
-> PR #1; the external nudge/stop bridge prototype lives in
-> `raindrop-workshop/examples/opencode-steering-actuator/`; the synchronous hard-veto gate plugin
-> lives in `opencode-observer-gate/`.
-> *Consolidates the earlier flat-session actuator draft + the standalone gate-plugin design into one
-> spec, per the 2026-05-30 native-tree + hard-veto decisions (see PROJECT_OVERVIEW → "Fan-out model").*
+Read [`PROJECT_OVERVIEW.md`](./PROJECT_OVERVIEW.md) first for the shared
+vocabulary: sensor, controller, actuator, plant, worker, and steering event.
+This document is the design contract for how an observer decision becomes a
+real effect on a running worker. It covers the three control levers used in
+this repo: **nudge** (inject), **abandon** (abort), and **hard veto** (the
+synchronous gate plugin).
+
+Current implementation:
+
+- external nudge/stop/restart bridge:
+  `raindrop-workshop/examples/opencode-steering-actuator/`
+- synchronous hard-veto gate plugin: `opencode-observer-gate/`
+- topology: OpenCode native parent session plus child `task` subagent sessions
+
+This doc consolidates the actuator and gate-plugin behavior into one reference
+so future changes do not split worker-control semantics across multiple files.
 
 ---
 
@@ -19,7 +24,7 @@
 - **Workers are native subagents.** The planner fans out via OpenCode's built-in subagent harness;
   each worker runs in **its own child session with its own `sessionID`**, forming a tree under a
   swarm root (`parentID`). We do *not* rebuild spawning over REST. *(Supersedes the earlier
-  flat-session framing — see PROJECT_OVERVIEW.)*
+  flat-session framing.)*
 - **The observer is external** (the brain). It identifies a worker by its `sessionID` and maps
   `sessionID → role / assigned subquestion` from its own run-state (+ `GET /session/:id/children`).
   No in-band "detection" of which session is which — it's a lookup.
@@ -31,8 +36,8 @@
   | **Abandon** (stop a worker) | `POST /session/:id/abort` (cooperative) + stop consuming its output | external |
   | **Hard veto** (block a call pre-execution) | the **gate plugin**'s `tool.execute.before` → **throw to block** | in-process |
 
-  *(Reach into a native child via REST is an L0 probe — see #6573 in PROJECT_OVERVIEW; if it hangs,
-  nudges route through the orchestrator.)*
+  *(If direct reach into a native child via REST hangs in a given OpenCode
+  version, route nudges through the parent/orchestrator session.)*
 
 - **The external actuator prototype exists.** `raindrop-workshop/examples/opencode-steering-actuator/`
   accepts observer decisions, resolves a Workshop run / task span to an OpenCode session, calls the

@@ -99,15 +99,15 @@ The actuator always writes a Workshop steering event with status:
 Start a controllable OpenCode server:
 
 ```bash
-/Users/vibhavagrawal/.opencode/bin/opencode serve --port 4096 --hostname 127.0.0.1
+opencode serve --port 4096 --hostname 127.0.0.1
 ```
 
 Then run workers through that server, for example:
 
 ```bash
-/Users/vibhavagrawal/.opencode/bin/opencode run \
+opencode run \
   --attach http://localhost:4096 \
-  --model openai/gpt-5.5-pro \
+  --model openai/gpt-4o-mini \
   --dangerously-skip-permissions \
   "Run the workflow..."
 ```

@@ -1,7 +1,8 @@
 # Replay Steering & Nudge-Value Eval — Design
 
-> **Scope doc for a fresh agent session.** Refines **L3 (Replay steering)** from
-> [`PROJECT_OVERVIEW.md`](PROJECT_OVERVIEW.md) and adds a per-nudge **value eval** for the demo.
+> Future-facing design for replay steering. Refines the replay/eval direction
+> from [`PROJECT_OVERVIEW.md`](PROJECT_OVERVIEW.md) and adds a per-nudge
+> **value eval** for demos and regression analysis.
 > Assumes the **native-subagent-tree** topology and the three-lever actuator in
 > [`STEERING_ACTUATOR.md`](STEERING_ACTUATOR.md) — read both first.
 > Status: **design — approved 2026-05-30** (reconciled the same day to the native-tree + gate-plugin
@@ -175,7 +176,7 @@ counterfactual).
 
 ## Credibility guardrails
 
-Cheap to add, and they're what survive a skeptical judge:
+Cheap to add, and they're what survive a skeptical review:
 
 - **Non-determinism → distribution, not a point.** Run each counterfactual ~3× and report
   median + range. (The response cache shrinks the variance at its source.)
@@ -190,10 +191,11 @@ Cheap to add, and they're what survive a skeptical judge:
 
 ## Risk & graceful degradation
 
-The whole scope rests on re-execution working. **De-risk it as an L3 probe building on the L0 spike**
-(L0 already proves reach / abort / veto on the native tree). Add: *"`revert`/fork a worker child
-session to an earlier message and re-run a divergent continuation under `opencode serve`; confirm
-both branches land as their own interactions on the :5900 timeline."*
+The whole scope rests on re-execution working. **De-risk it with a dedicated
+replay probe** before building policy around it: *"`revert`/fork a worker child
+session to an earlier message and re-run a divergent continuation under
+`opencode serve`; confirm both branches land as their own interactions on the
+Workshop timeline."*
 
 Degradation ladder if re-execution is shaky:
 
