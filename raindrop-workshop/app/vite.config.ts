@@ -16,11 +16,21 @@ const rootPackage = JSON.parse(
 const raindropVersion = process.env.RAINDROP_VERSION || rootPackage.version || "dev";
 const raindropAssetsBaseUrl = (process.env.RAINDROP_ASSETS_BASE_URL || "https://raindrop.sh").replace(/\/+$/, "");
 
+const benchPromptPath = path.resolve(__dirname, "../../scenarios/jinja-cve-2025-27516/PROMPT.md");
+const benchDefaultPrompt = (() => {
+  try {
+    return readFileSync(benchPromptPath, "utf8");
+  } catch {
+    return "";
+  }
+})();
+
 export default defineConfig({
   plugins: [react()],
   define: {
     __RAINDROP_VERSION__: JSON.stringify(raindropVersion),
     __RAINDROP_ASSETS_BASE_URL__: JSON.stringify(raindropAssetsBaseUrl),
+    __BENCH_DEFAULT_PROMPT__: JSON.stringify(benchDefaultPrompt),
   },
   resolve: {
     alias: {

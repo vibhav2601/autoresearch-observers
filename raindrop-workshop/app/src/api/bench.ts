@@ -27,8 +27,9 @@ export async function postBenchRun(input: {
   observer: BenchObserverMode;
   cwd?: string;
   model?: string;
-}): Promise<{ ok: true; benchId: string; observer: BenchObserverMode }> {
-  return apiJson<{ ok: true; benchId: string; observer: BenchObserverMode }>(
+  runs?: number;
+}): Promise<{ ok: true; benchIds: string[]; observer: BenchObserverMode; runs: number }> {
+  return apiJson<{ ok: true; benchIds: string[]; observer: BenchObserverMode; runs: number }>(
     "/api/bench/run",
     jsonInit("POST", input),
   );

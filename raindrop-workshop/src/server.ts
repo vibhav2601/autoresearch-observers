@@ -1760,6 +1760,8 @@ export async function createServer(port: number) {
     const observer = body.observer === "off" ? "off" : body.observer === "on" ? "on" : null;
     const cwd = typeof body.cwd === "string" && body.cwd.trim() ? body.cwd.trim() : undefined;
     const model = typeof body.model === "string" && body.model.trim() ? body.model.trim() : undefined;
+    const rawRuns = typeof body.runs === "number" ? body.runs : 1;
+    const runs = Number.isFinite(rawRuns) ? Math.max(1, Math.min(20, Math.floor(rawRuns))) : 1;
     if (!prompt) {
       res.status(400).json({ error: "prompt required" });
       return;
@@ -1768,14 +1770,18 @@ export async function createServer(port: number) {
       res.status(400).json({ error: "observer must be 'off' or 'on'" });
       return;
     }
-    const { benchId } = startBenchRun(
-      { prompt, cwd, model, observer },
-      {
-        emit: (event) => broadcast("bench_event", event),
-        workshopBase: `http://localhost:${port}`,
-      },
-    );
-    res.status(202).json({ ok: true, benchId, observer });
+    const benchIds: string[] = [];
+    for (let i = 0; i < runs; i++) {
+      const { benchId } = startBenchRun(
+        { prompt, cwd, model, observer },
+        {
+          emit: (event) => broadcast("bench_event", event),
+          workshopBase: `http://localhost:${port}`,
+        },
+      );
+      benchIds.push(benchId);
+    }
+    res.status(202).json({ ok: true, benchIds, observer, runs });
   });
 
   // Saved run cache — persists across clears
