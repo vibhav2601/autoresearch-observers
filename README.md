@@ -58,20 +58,6 @@ whether the intervention landed.
 That makes Raindrop Workshop more than a dashboard: it becomes the sensor,
 timeline, debug view, and evaluation surface for an agent control loop.
 
-## Recommended Path
-
-If you are new to the repo, start here:
-
-1. Read [docs/PROJECT_OVERVIEW.md](./docs/PROJECT_OVERVIEW.md) for the system
-   model and implementation map.
-2. Use [docs/LOCAL_SETUP.md](./docs/LOCAL_SETUP.md) to run the local loop.
-3. Open the relevant component README before changing code:
-   observer, actuator, gate plugin, tracing setup, or scenarios.
-4. Use [docs/STEERING_ACTUATOR.md](./docs/STEERING_ACTUATOR.md) when touching
-   worker-control behavior.
-
-The same path also works as a quick demo walkthrough.
-
 ## Local startup
 
 The full local run uses four long-running processes: Workshop, the observer,
