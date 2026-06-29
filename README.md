@@ -13,25 +13,24 @@ OpenCode worker swarm -> Raindrop Workshop trace -> observer agent -> steering a
 
 ## Slides
 
-**1. Agent in the loop**
+[Open the interactive Agent in the Loop deck](https://gist.githack.com/vibhav2601/8b3039652a09611f1eecfa114bee74ba/raw/slides.html)
 
-![Agent in the loop title slide](./assets/slides/agent-in-the-loop/01-agent-in-the-loop.png)
+[View the Gist source](https://gist.github.com/vibhav2601/8b3039652a09611f1eecfa114bee74ba)
+or the repo copy at [`slides.html`](./slides.html).
 
-**2. Research swarm failure modes**
+## Demo video
 
-![Research swarm failure modes slide](./assets/slides/agent-in-the-loop/02-problem-patterns.png)
+[![Watch the Agent in the Loop demo video](./assets/demo/agent-in-the-loop-demo-poster.png)](./assets/demo/agent-in-the-loop-demo.mp4)
 
-**3. Closed control loop**
+## Screenshots
 
-![Closed control loop slide](./assets/slides/agent-in-the-loop/03-closed-control-loop.png)
+| Research swarm failure modes | Closed control loop |
+| --- | --- |
+| ![Research swarm failure modes screenshot](./assets/slides/agent-in-the-loop/02-problem-patterns.png) | ![Closed control loop screenshot](./assets/slides/agent-in-the-loop/03-closed-control-loop.png) |
 
-**4. Patterns to nudges**
-
-![Patterns to nudges slide](./assets/slides/agent-in-the-loop/04-patterns-to-nudges.png)
-
-**5. Benchmarks**
-
-![Benchmarks slide](./assets/slides/agent-in-the-loop/05-benchmarks.png)
+| Patterns to nudges | Benchmarks |
+| --- | --- |
+| ![Patterns to nudges screenshot](./assets/slides/agent-in-the-loop/04-patterns-to-nudges.png) | ![Benchmarks screenshot](./assets/slides/agent-in-the-loop/05-benchmarks.png) |
 
 ## What it does
 
