@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>agent in the loop demo video</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f4f1ea;
+      --ink: #1c1b22;
+      --muted: #5d5b64;
+      --indigo: #3b46d4;
+      --line: rgba(28, 27, 34, .12);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      display: grid;
+      place-items: center;
+      padding: 32px;
+    }
+
+    main {
+      width: min(1120px, 100%);
+    }
+
+    a {
+      color: var(--indigo);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: clamp(34px, 6vw, 72px);
+      line-height: .98;
+      letter-spacing: -.03em;
+      font-family: Georgia, "Times New Roman", serif;
+      font-weight: 600;
+    }
+
+    p {
+      margin: 0 0 24px;
+      color: var(--muted);
+      font-size: 18px;
+    }
+
+    video {
+      display: block;
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: #111;
+      box-shadow: 0 18px 60px rgba(24, 22, 50, .12);
+    }
+
+    nav {
+      margin-top: 18px;
+      display: flex;
+      gap: 18px;
+      flex-wrap: wrap;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>agent in the loop demo</h1>
+    <p>A short walkthrough of live observer nudges in Raindrop Workshop.</p>
+    <video
+      controls
+      playsinline
+      preload="metadata"
+      poster="./agent-in-the-loop-demo-poster.png"
+      src="./agent-in-the-loop-demo.mp4">
+      <a href="./agent-in-the-loop-demo.mp4">Download the demo video</a>.
+    </video>
+    <nav>
+      <a href="./slides.html">Open the slide deck</a>
+      <a href="./agent-in-the-loop-demo.mp4">Download MP4</a>
+      <a href="https://github.com/vibhav2601/autoresearch-observers">Back to the repo</a>
+    </nav>
+  </main>
+</body>
+</html>
