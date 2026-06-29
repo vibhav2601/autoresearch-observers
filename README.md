@@ -13,10 +13,9 @@ OpenCode worker swarm -> Raindrop Workshop trace -> observer agent -> steering a
 
 ## Slides
 
-[Open the interactive Agent in the Loop deck](https://gist.githack.com/vibhav2601/8b3039652a09611f1eecfa114bee74ba/raw/slides.html)
+[Open the interactive Agent in the Loop deck](https://vibhav2601.github.io/autoresearch-observers/slides.html)
 
-[View the Gist source](https://gist.github.com/vibhav2601/8b3039652a09611f1eecfa114bee74ba)
-or the repo copy at [`slides.html`](./slides.html).
+The source lives in this repo at [`slides.html`](./slides.html).
 
 ## Demo video
 
