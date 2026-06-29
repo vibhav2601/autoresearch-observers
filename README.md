@@ -23,13 +23,9 @@ The source lives in this repo at [`slides.html`](./slides.html).
 
 ## Screenshots
 
-| Research swarm failure modes | Closed control loop |
+| Span tree nudges | Observer steering |
 | --- | --- |
-| ![Research swarm failure modes screenshot](./assets/slides/agent-in-the-loop/02-problem-patterns.png) | ![Closed control loop screenshot](./assets/slides/agent-in-the-loop/03-closed-control-loop.png) |
-
-| Patterns to nudges | Benchmarks |
-| --- | --- |
-| ![Patterns to nudges screenshot](./assets/slides/agent-in-the-loop/04-patterns-to-nudges.png) | ![Benchmarks screenshot](./assets/slides/agent-in-the-loop/05-benchmarks.png) |
+| ![Span tree with observer nudges](./assets/screenshots/span-tree-nudges.png) | ![Observer steering events](./assets/screenshots/observer-steering.png) |
 
 ## What it does
 
