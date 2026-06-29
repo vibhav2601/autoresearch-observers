@@ -11,6 +11,28 @@ The result is a local closed loop:
 OpenCode worker swarm -> Raindrop Workshop trace -> observer agent -> steering actuator -> OpenCode workers
 ```
 
+## Slides
+
+**1. Agent in the loop**
+
+![Agent in the loop title slide](./assets/slides/agent-in-the-loop/01-agent-in-the-loop.png)
+
+**2. Research swarm failure modes**
+
+![Research swarm failure modes slide](./assets/slides/agent-in-the-loop/02-problem-patterns.png)
+
+**3. Closed control loop**
+
+![Closed control loop slide](./assets/slides/agent-in-the-loop/03-closed-control-loop.png)
+
+**4. Patterns to nudges**
+
+![Patterns to nudges slide](./assets/slides/agent-in-the-loop/04-patterns-to-nudges.png)
+
+**5. Benchmarks**
+
+![Benchmarks slide](./assets/slides/agent-in-the-loop/05-benchmarks.png)
+
 ## What it does
 
 Multi-agent research runs fail in familiar ways: duplicate searches,

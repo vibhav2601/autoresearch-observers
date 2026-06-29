@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>agent in the loop — Hackathon Deck</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: light;
+      --paper:  #f4f1ea;
+      --paper2: #faf8f3;
+      --card:   #ffffff;
+      --ink:    #1c1b22;
+      --muted:  #5d5b64;
+      --faint:  #9b988f;
+      --line:   rgba(28,27,34,.10);
+      --line-2: rgba(28,27,34,.06);
+      --indigo: #3b46d4;
+      --teal:   #0d8e84;
+      --green:  #2f8a4d;
+      --amber:  #bd7813;
+      --red:    #d6452f;
+      --violet: #6d44c9;
+      --shadow: 0 1px 2px rgba(24,22,40,.05), 0 10px 34px rgba(24,22,50,.07);
+      --shadow-lg: 0 2px 6px rgba(24,22,40,.06), 0 22px 60px rgba(24,22,50,.10);
+      --serif: "Fraunces", Georgia, "Times New Roman", serif;
+      --sans: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+
+    body {
+      margin: 0;
+      background:
+        radial-gradient(1100px 720px at 84% -8%, rgba(59,70,212,.06), transparent 60%),
+        radial-gradient(900px 600px at -5% 108%, rgba(13,142,132,.07), transparent 58%),
+        var(--paper);
+      color: var(--ink);
+      font-family: var(--sans);
+      line-height: 1.5;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .deck { height: 100vh; width: 100vw; position: relative; }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      padding: 7vh clamp(36px, 7.5vw, 132px);
+      animation: rise .5s cubic-bezier(.22,.61,.36,1);
+    }
+    .slide.active { display: flex; }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    h1, h2, h3, h4, p, ul, ol { margin: 0; }
+
+    /* kicker with leading rule */
+    .kicker {
+      display: inline-flex; align-items: center; gap: 12px;
+      font-size: 12.5px;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      color: var(--indigo);
+      margin-bottom: 26px;
+      font-weight: 600;
+    }
+    .kicker::before {
+      content: ""; width: 30px; height: 2px; border-radius: 2px;
+      background: currentColor; opacity: .55;
+    }
+    .kicker.amber  { color: var(--amber); }
+    .kicker.violet { color: var(--violet); }
+    .kicker.green  { color: var(--green); }
+    .kicker.red    { color: var(--red); }
+
+    h1 {
+      font-family: var(--serif);
+      font-size: clamp(54px, 8.6vw, 124px);
+      line-height: .96;
+      letter-spacing: -.025em;
+      font-weight: 600;
+    }
+    h2 {
+      font-family: var(--serif);
+      font-size: clamp(34px, 5vw, 64px);
+      line-height: 1.04;
+      letter-spacing: -.02em;
+      font-weight: 600;
+      margin-bottom: 30px;
+      max-width: 20ch;
+    }
+    h3 {
+      font-size: clamp(17px, 2vw, 22px);
+      font-weight: 600;
+      letter-spacing: -.01em;
+    }
+    .lead {
+      font-size: clamp(18px, 2.1vw, 26px);
+      color: var(--muted);
+      max-width: 58ch;
+      margin-top: 28px;
+      line-height: 1.45;
+    }
+    .lead.tight { margin-top: 18px; }
+    .sub { color: var(--muted); font-size: clamp(15px, 1.55vw, 18px); max-width: 72ch; }
+
+    .accent   { color: var(--indigo); }
+    .accent-c { color: var(--teal); }
+    .accent-g { color: var(--green); }
+    .accent-a { color: var(--amber); }
+    .accent-r { color: var(--red); }
+    em { font-style: normal; color: var(--indigo); font-weight: 500; }
+    .mono { font-family: var(--mono); font-size: .9em; }
+
+    /* title slide */
+    .title-meta { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 44px; }
+    .pill {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.7);
+      backdrop-filter: blur(6px);
+      border-radius: 999px;
+      padding: 9px 18px;
+      font-size: 14px;
+      color: var(--muted);
+      box-shadow: var(--shadow);
+    }
+    .pill b { color: var(--ink); font-weight: 600; }
+
+    /* grids */
+    .grid { display: grid; gap: 18px; margin-top: 6px; }
+    .g2 { grid-template-columns: repeat(2, 1fr); }
+    .g3 { grid-template-columns: repeat(3, 1fr); }
+    .g4 { grid-template-columns: repeat(4, 1fr); }
+
+    .card {
+      border: 1px solid var(--line-2);
+      background: var(--card);
+      border-radius: 18px;
+      padding: 24px 26px;
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
+    }
+    /* colored top accent strip on cards */
+    .card::before {
+      content: ""; position: absolute; left: 0; top: 0; height: 3px; width: 100%;
+      background: var(--accent-color, transparent);
+      opacity: .9;
+    }
+    .card .n {
+      font-size: 12.5px; color: var(--faint); letter-spacing: .04em; text-transform: uppercase;
+      margin-bottom: 12px; font-weight: 600;
+    }
+    .card p { color: var(--muted); font-size: 15.5px; line-height: 1.5; }
+    .card.blue   { --accent-color: var(--indigo); }
+    .card.cyan   { --accent-color: var(--teal); }
+    .card.green  { --accent-color: var(--green); }
+    .card.amber  { --accent-color: var(--amber); }
+    .card.red    { --accent-color: var(--red); }
+    .card.violet { --accent-color: var(--violet); }
+
+    /* pattern → nudge rows */
+    .pn { display: flex; flex-direction: column; gap: 12px; margin-top: 4px; }
+    .pn-row {
+      display: grid; grid-template-columns: 1.05fr auto 1.15fr; align-items: center; gap: 20px;
+      border: 1px solid var(--line-2); border-radius: 14px; padding: 15px 22px;
+      background: var(--card); box-shadow: var(--shadow);
+    }
+    .pn-row .p-title { font-weight: 600; font-size: 17px; }
+    .pn-row .p-desc { color: var(--muted); font-size: 13.5px; margin-top: 3px; }
+    .pn-row .arrow { font-size: 22px; color: var(--indigo); justify-self: center; }
+    .pn-row .nudge { color: var(--teal); font-size: 15.5px; font-weight: 500; }
+
+    /* architecture flow */
+    .flow { display: flex; align-items: stretch; gap: 0; margin-top: 18px; flex-wrap: wrap; }
+    .node {
+      flex: 1 1 0; min-width: 156px;
+      border: 1px solid var(--line-2); border-radius: 18px; padding: 22px 20px;
+      background: var(--card); box-shadow: var(--shadow);
+      position: relative; text-align: center; overflow: hidden;
+    }
+    .node::before {
+      content: ""; position: absolute; left: 0; top: 0; height: 3px; width: 100%;
+      background: var(--node-color, var(--faint)); opacity: .9;
+    }
+    .node .role { font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--faint); margin-bottom: 9px; font-weight: 600; }
+    .node .name { font-weight: 600; font-size: 18px; letter-spacing: -.01em; }
+    .node .desc { color: var(--muted); font-size: 13px; margin-top: 8px; line-height: 1.4; }
+    .conn { display: flex; align-items: center; justify-content: center; color: var(--indigo); font-size: 22px; padding: 0 8px; opacity: .65; }
+
+    .loopback {
+      margin-top: 18px; text-align: center; color: var(--muted); font-size: 14.5px;
+      border: 1px dashed rgba(13,142,132,.4); border-radius: 14px; padding: 14px 18px;
+      background: rgba(13,142,132,.05);
+    }
+    .loopback b { color: var(--ink); }
+
+    /* scoreboard */
+    .scoreboard { margin-top: 8px; display: grid; grid-template-columns: repeat(5,1fr); gap: 14px; }
+    .metric { border: 1px solid var(--line-2); border-radius: 14px; padding: 18px 14px; text-align: center; background: var(--card); box-shadow: var(--shadow); }
+    .metric .lbl { font-size: 11.5px; color: var(--faint); text-transform: uppercase; letter-spacing: .07em; font-weight: 600; }
+    .metric .v { font-size: 22px; color: var(--ink); margin-top: 8px; font-weight: 700; font-family: var(--serif); }
+    .metric .v span { font-size: 13px; font-family: var(--sans); font-weight: 500; }
+
+    code.inl { font-family: var(--mono); background: rgba(59,70,212,.08); padding: 2px 8px; border-radius: 6px; font-size: .82em; color: var(--indigo); }
+
+    /* chrome */
+    .progress { position: fixed; top: 0; left: 0; height: 3px; background: linear-gradient(90deg, var(--indigo), var(--teal)); z-index: 50; transition: width .4s cubic-bezier(.22,.61,.36,1); box-shadow: 0 0 12px rgba(59,70,212,.3); }
+    .counter { position: fixed; bottom: 26px; right: 32px; font-size: 13px; color: var(--faint); z-index: 50; font-family: var(--mono); }
+    .counter b { color: var(--ink); }
+    .brand { position: fixed; bottom: 26px; left: 32px; font-size: 13px; color: var(--faint); z-index: 50; letter-spacing: .02em; font-weight: 500; }
+    .hint { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%); font-size: 12px; color: var(--faint); opacity: .55; z-index: 50; }
+  </style>
+</head>
+<body>
+  <div class="progress" id="progress"></div>
+  <div class="deck" id="deck">
+
+    <!-- 0 — TITLE -->
+    <section class="slide active">
+      <div class="kicker">Autoresearch Systems Hackathon · Modal × OpenAI × Raindrop × Antler</div>
+      <h1>agent <span class="accent">in&nbsp;the&nbsp;loop</span></h1>
+      <p class="lead">A background agent that watches long-running sessions and steers them to stay on track.</p>
+      <div class="title-meta">
+        <span class="pill">Reads live execution traces <b>at runtime</b></span>
+        <span class="pill">Built on <b>OpenCode</b> + <b>Raindrop Workshop</b></span>
+        <span class="pill">Runs <b>fully local</b></span>
+      </div>
+    </section>
+
+    <!-- 1 — PROBLEM -->
+    <section class="slide">
+      <div class="kicker red">Problem</div>
+      <h2>Research swarms fail in the <span class="accent-r">same four ways</span>.</h2>
+      <div class="grid g4">
+        <div class="card red"><div class="n">Loop</div><p>A searcher chases a nonexistent file, retries the same dead query, never converges.</p></div>
+        <div class="card red"><div class="n">Duplicate</div><p>Two agents independently grind the same source — wasted tokens, wasted wall-clock.</p></div>
+        <div class="card red"><div class="n">Contradict</div><p>Subagents return conflicting claims; the parent silently accepts the wrong one.</p></div>
+        <div class="card red"><div class="n">Drift</div><p>An agent wanders off its subquestion and inflates stale or hallucinated evidence.</p></div>
+      </div>
+      <p class="lead">Today the trace is a <span class="accent-r">post-mortem</span> — you read it after the run already burned the budget. <span class="accent-c">It should be a control signal, not a log.</span></p>
+    </section>
+
+    <!-- 2 — ARCHITECTURE -->
+    <section class="slide">
+      <div class="kicker violet">Architecture</div>
+      <h2>Autonomous research as a <span class="accent">closed control loop</span>.</h2>
+      <div class="flow">
+        <div class="node"><div class="role">Plant</div><div class="name">OpenCode workers</div><div class="desc">Flat top-level sessions, fanned out on subquestions</div></div>
+        <div class="conn">→</div>
+        <div class="node" style="--node-color:var(--teal)"><div class="role">Sensor</div><div class="name accent-c">Raindrop Workshop</div><div class="desc">Every message, tool call &amp; LLM span → local SQLite</div></div>
+        <div class="conn">→</div>
+        <div class="node" style="--node-color:var(--indigo)"><div class="role">Controller</div><div class="name accent">Observer agent</div><div class="desc">Reads traces, runs heuristics, decides intervention</div></div>
+        <div class="conn">→</div>
+        <div class="node" style="--node-color:var(--green)"><div class="role">Actuator</div><div class="name accent-g">Steering actuator</div><div class="desc">Injects prompts &amp; aborts via OpenCode control API</div></div>
+      </div>
+      <div class="loopback">↺ <b>Setpoint</b> = the research goal as a coverage map · <b>Error</b> = coverage delta + novelty decay · nudges written back as <b>spans on the same trace timeline</b> (self-audit). Runs fully local.</div>
+    </section>
+
+    <!-- 3 — SOLUTION -->
+    <section class="slide">
+      <div class="kicker green">Solution</div>
+      <h2>Four patterns → <span class="accent-c">four nudges</span>, hybrid policy.</h2>
+      <p class="sub" style="margin-bottom:18px">A small, fixed P→N mapping — and that mapping <em>is</em> the eval surface: <span class="mono accent-c">given trace pattern P, observer emits nudge N.</span> Cheap heuristics decide <b>when</b> to wake; the LLM decides <b>what</b> to do.</p>
+      <div class="pn">
+        <div class="pn-row"><div><div class="p-title accent-r">Duplicate work</div><div class="p-desc">Fuzzy-match search spans across agents</div></div><div class="arrow">→</div><div class="nudge">"Stop — Searcher 2 already has this." Reassign.</div></div>
+        <div class="pn-row"><div><div class="p-title accent-r">Contradiction</div><div class="p-desc">Cluster claims, flag opposing assertions</div></div><div class="arrow">→</div><div class="nudge">"Your finding conflicts with Searcher 1 — re-verify."</div></div>
+        <div class="pn-row"><div><div class="p-title accent-r">Stall / blocker</div><div class="p-desc">Span-duration thresholds + dependency state</div></div><div class="arrow">→</div><div class="nudge">"Abandon this thread, return what you have."</div></div>
+        <div class="pn-row"><div><div class="p-title accent-r">Drift</div><div class="p-desc">Semantic similarity to the assigned task</div></div><div class="arrow">→</div><div class="nudge">"Refocus on subquestion X."</div></div>
+      </div>
+      <p class="sub" style="margin-top:18px">Typed <code class="inl">Intervention { action, payload, reason, confidence }</code> — rate-limited &amp; confidence-gated so the controller can't thrash.</p>
+    </section>
+
+    <!-- 4 — BENCHMARKS -->
+    <section class="slide">
+      <div class="kicker amber">Benchmarks</div>
+      <h2>Measured OFF-vs-ON, <span class="accent">not a lucky trace</span>.</h2>
+      <p class="sub" style="margin-bottom:14px">Identical workflow, model &amp; fixture — control vs. nudged, ≥3 trials each, compared on medians. A scorer grades a machine-readable <code class="inl">BENCHMARK_FINAL_JSON</code> against the source-of-truth brief.</p>
+      <div class="scoreboard">
+        <div class="metric"><div class="lbl">Accuracy</div><div class="v"><span>TBD</span></div></div>
+        <div class="metric"><div class="lbl">Steps to goal</div><div class="v"><span>TBD</span></div></div>
+        <div class="metric"><div class="lbl">Total tokens</div><div class="v"><span>TBD</span></div></div>
+        <div class="metric"><div class="lbl">Wall-clock</div><div class="v"><span>TBD</span></div></div>
+        <div class="metric"><div class="lbl">Steering events</div><div class="v"><span>TBD</span></div></div>
+      </div>
+      <div class="grid g3" style="margin-top:26px">
+        <div class="card green"><div class="n">Accept the nudger if</div><p>Accuracy rises, <em>or</em> stays perfect while duration/tokens drop; stale claims corrected earlier.</p></div>
+        <div class="card amber"><div class="n">Demo fixture</div><p>Hallucinating subagents over authoritative <code class="inl">research_brief.md</code> vs. stale traps in <code class="inl">obsolete_notes.md</code>.</p></div>
+        <div class="card red"><div class="n">Reject it if</div><p>The observer did the task for the worker, thrashed, or cost more tokens than it saved.</p></div>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="counter"><b id="cur">1</b> / <span id="total">5</span></div>
+  <div class="brand">agent in the loop</div>
+  <div class="hint">← → / space to navigate · F for fullscreen</div>
+
+  <script>
+    const slides = Array.from(document.querySelectorAll('.slide'));
+    const total = slides.length;
+    let i = 0;
+    document.getElementById('total').textContent = total;
+
+    function show(n) {
+      i = Math.max(0, Math.min(total - 1, n));
+      slides.forEach((s, idx) => s.classList.toggle('active', idx === i));
+      document.getElementById('cur').textContent = i + 1;
+      document.getElementById('progress').style.width = ((i + 1) / total * 100) + '%';
+    }
+    function next() { show(i + 1); }
+    function prev() { show(i - 1); }
+
+    document.addEventListener('keydown', (e) => {
+      if (['ArrowRight', 'ArrowDown', ' ', 'PageDown'].includes(e.key)) { e.preventDefault(); next(); }
+      else if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(e.key)) { e.preventDefault(); prev(); }
+      else if (e.key === 'Home') show(0);
+      else if (e.key === 'End') show(total - 1);
+      else if (e.key.toLowerCase() === 'f') {
+        if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+        else document.exitFullscreen();
+      }
+    });
+    document.getElementById('deck').addEventListener('click', (e) => {
+      if (e.clientX < window.innerWidth * 0.25) prev(); else next();
+    });
+    show(0);
+  </script>
+</body>
+</html>
