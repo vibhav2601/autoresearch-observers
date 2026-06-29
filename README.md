@@ -19,7 +19,7 @@ The source lives in this repo at [`slides.html`](./slides.html).
 
 ## Demo video
 
-[![Watch the Agent in the Loop demo video](./assets/demo/agent-in-the-loop-demo-poster.png)](https://vibhav2601.github.io/autoresearch-observers/demo.html)
+[![Watch the Agent in the Loop demo video](./assets/demo/sped-up-bio-demo-poster.png)](https://vibhav2601.github.io/autoresearch-observers/demo.html)
 
 ## Screenshots
 
